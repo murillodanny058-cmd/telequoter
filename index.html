@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TeleQuoter — Cotizador de Telecomunicaciones</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --red:#D72B1F;--red-dark:#b82318;--red-light:#FCEBEB;
+  --bg:#F5F5F3;--white:#FFFFFF;--border:#E2E2DE;--border2:#CBCBC6;
+  --text:#1A1A18;--text2:#5C5C58;--text3:#9C9C98;
+  --radius:10px;--radius-sm:7px;--shadow:0 1px 4px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* NAV */
+nav{background:var(--red);padding:0 2rem;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.nav-brand{display:flex;align-items:center;gap:10px}
+.nav-logo{width:32px;height:32px;background:rgba(255,255,255,.18);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;letter-spacing:.03em}
+.nav-title{color:#fff;font-size:15px;font-weight:600}
+.nav-sub{color:rgba(255,255,255,.75);font-size:11px}
+.nav-badge{background:rgba(255,255,255,.18);color:#fff;font-size:10px;padding:3px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25)}
+
+/* LAYOUT */
+.container{max-width:1100px;margin:0 auto;padding:2rem 1.5rem}
+
+/* EMPRESA CARD */
+.emp-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.5rem;box-shadow:var(--shadow)}
+.section-label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem}
+.emp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px}
+.f{display:flex;flex-direction:column;gap:5px}
+.f label{font-size:12px;color:var(--text2);font-weight:500}
+.f input,.f select{font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--white);color:var(--text);outline:none;transition:border .15s}
+.f input:focus,.f select:focus{border-color:var(--red)}
+.f .hint{font-size:11px;color:var(--text3)}
+
+/* SELECTOR SOLUCIÓN */
+.sol-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem}
+.sol-card{background:var(--white);border:2px solid var(--border);border-radius:var(--radius);padding:1.25rem 1rem;cursor:pointer;text-align:center;transition:all .15s;box-shadow:var(--shadow)}
+.sol-card:hover{border-color:var(--red-dark);transform:translateY(-1px)}
+.sol-card.active{border-color:var(--red);background:#fff8f7}
+.sol-icon{font-size:28px;margin-bottom:8px;display:block}
+.sol-title{font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.sol-desc{font-size:11px;color:var(--text3);line-height:1.4}
+.sol-card.active .sol-title{color:var(--red)}
+
+/* PANEL */
+.panel{display:none}.panel.active{display:block}
+.main-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.5rem;box-shadow:var(--shadow)}
+
+/* SUBTABS */
+.subtabs{display:flex;gap:6px;margin-bottom:1.25rem;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:1rem}
+.stab{padding:7px 15px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--white);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.stab.active{background:var(--red);color:#fff;border-color:var(--red)}
+.stab:hover:not(.active){background:var(--bg);border-color:var(--border2)}
+.spanel{display:none}.spanel.active{display:block}
+
+/* FORM GRID */
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px;margin-bottom:1rem}
+
+/* BOTÓN GENERAR */
+.btn-gen{width:100%;padding:11px;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);font-size:14px;font-weight:600;cursor:pointer;margin-top:.5rem;transition:background .15s;letter-spacing:.01em}
+.btn-gen:hover{background:var(--red-dark)}
+
+/* RESULTADO */
+.res-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);margin-top:1.5rem}
+.res-topbar{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.5rem;border-bottom:1px solid var(--border);background:#FAFAFA}
+.res-title{font-size:15px;font-weight:600;color:var(--text)}
+.res-badge{display:inline-block;font-size:10px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--red-light);color:var(--red);margin-left:8px;vertical-align:middle}
+.btn-pdf{display:flex;align-items:center;gap:7px;padding:8px 18px;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.btn-pdf:hover{background:var(--red-dark)}
+.btn-pdf svg{flex-shrink:0}
+
+.cot-info{display:flex;justify-content:space-between;align-items:flex-start;padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);background:var(--white)}
+.cot-empresa .nombre{font-size:15px;font-weight:600;color:var(--text)}
+.cot-empresa .detalle{font-size:12px;color:var(--text2);margin-top:2px}
+.cot-cliente{text-align:right}
+.cot-cliente .cli{font-size:13px;color:var(--text2)}
+.cot-cliente .cli b{color:var(--text)}
+.cot-cliente .fecha{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* TABLA */
+.table-wrap{overflow-x:auto;padding:0 1.5rem 1.5rem}
+table.mat{width:100%;border-collapse:collapse;font-size:13px;margin-top:1rem}
+table.mat th{text-align:left;padding:8px 10px;color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid var(--border);white-space:nowrap}
+table.mat td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+table.mat tr:last-child td{border-bottom:none}
+table.mat tr:hover td{background:#FAFAF8}
+table.mat td.ref{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:500;color:var(--red);white-space:nowrap}
+table.mat td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mg-input{width:58px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:12px;font-family:'Inter',sans-serif;text-align:center;color:var(--text);background:var(--bg);outline:none;transition:border .15s}
+.mg-input:focus{border-color:var(--red);background:#fff}
+.mg-wrap{display:flex;align-items:center;gap:3px;justify-content:center}
+.mg-wrap span{font-size:11px;color:var(--text3)}
+td.mg-cell{text-align:center;white-space:nowrap}
+td.pventa{text-align:right;font-weight:600;color:var(--text);white-space:nowrap}
+td.total-item{text-align:right;font-weight:700;color:var(--text);white-space:nowrap}
+.tf-sub td{background:#F8F8F6;font-weight:500;font-size:12px;padding:8px 10px;border-top:1px solid var(--border)!important}
+.tf-iva td{background:#F8F8F6;font-weight:500;font-size:12px;padding:6px 10px}
+.tf-tot td{background:#fff8f7;font-weight:700;font-size:15px;padding:11px 10px;color:var(--red);border-top:2px solid var(--red-light)!important}
+
+/* ALERTAS TÉCNICAS */
+.alert-box{margin-bottom:1rem;border-radius:var(--radius-sm);padding:.85rem 1rem;font-size:13px;line-height:1.6;display:flex;gap:10px;align-items:flex-start}
+.alert-box.warn{background:#FAEEDA;border:1px solid #EF9F27;color:#633806}
+.alert-box.error{background:#FCEBEB;border:1px solid #E24B4A;color:#501313}
+.alert-box.ok{background:#EAF3DE;border:1px solid #97C459;color:#173404}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.alert-title{font-weight:600;margin-bottom:2px}
+
+/* RESUMEN EJECUTIVO */
+.exec-section{padding:1.25rem 1.5rem;border-top:1px solid var(--border);background:#FAFAF8}
+.exec-box{background:var(--white);border:1px solid var(--border);border-left:4px solid var(--red);border-radius:var(--radius-sm);padding:1rem 1.25rem;font-size:13px;line-height:1.8;color:var(--text2);margin-top:.75rem;white-space:pre-wrap}
+
+/* FECHA ENTREGA POR ÍTEM */
+.date-input{font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg);outline:none;transition:border .15s;width:130px}
+.date-input:focus{border-color:var(--red);background:#fff}
+td.date-cell{white-space:nowrap;min-width:140px}
+
+/* OBSERVACIONES */
+.obs-section{padding:1.25rem 1.5rem;border-top:1px solid var(--border);background:var(--white)}
+.obs-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:.75rem}
+.obs-box{display:flex;flex-direction:column;gap:6px}
+.obs-box label{font-size:12px;font-weight:600;color:var(--text2)}
+.obs-box textarea{font-size:13px;font-family:'Inter',sans-serif;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--text);resize:vertical;min-height:90px;outline:none;line-height:1.6;transition:border .15s}
+.obs-box textarea:focus{border-color:var(--red);background:var(--white)}
+@media(max-width:600px){.obs-grid{grid-template-columns:1fr}}
+
+/* RUIJIE SUGGESTION */
+.ruijie-section{border-top:3px solid #005BAC;background:#F0F6FF;padding:1.25rem 1.5rem}
+.ruijie-header{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+.ruijie-logo{background:#005BAC;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:5px;letter-spacing:.05em;flex-shrink:0}
+.ruijie-title{font-size:13px;font-weight:600;color:#003D7A}
+.ruijie-sub{font-size:11px;color:#4A6A8A;margin-top:1px}
+.ruijie-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.ruijie-card{background:#fff;border:1px solid #C5D8EE;border-radius:var(--radius);padding:1rem;transition:box-shadow .15s;cursor:default}
+.ruijie-card:hover{box-shadow:0 2px 10px rgba(0,91,172,.12)}
+.ruijie-card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem}
+.ruijie-ref{font-family:'Roboto Mono',monospace;font-size:11px;font-weight:600;color:#005BAC;background:#E6F0FB;padding:2px 7px;border-radius:4px}
+.ruijie-tipo{font-size:10px;color:#4A6A8A;background:#EEF4FB;padding:2px 8px;border-radius:999px;border:1px solid #C5D8EE}
+.ruijie-name{font-size:13px;font-weight:600;color:#1A1A18;margin-bottom:4px}
+.ruijie-specs{font-size:11px;color:#5C5C58;line-height:1.6;margin-bottom:.75rem}
+.ruijie-footer{display:flex;justify-content:space-between;align-items:center;padding-top:.6rem;border-top:1px solid #E8EFF7}
+.ruijie-price{font-size:15px;font-weight:700;color:#005BAC}
+.ruijie-why{font-size:10px;color:#4A6A8A;font-style:italic;max-width:140px;text-align:right;line-height:1.4}
+.ruijie-toggle{font-size:11px;color:#005BAC;cursor:pointer;text-decoration:underline;margin-top:.75rem;display:inline-block}
+.ruijie-note{font-size:11px;color:#4A6A8A;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #C5D8EE;line-height:1.6}
+
+.footer-note{padding:.75rem 1.5rem;font-size:11px;color:var(--text3);border-top:1px solid var(--border);background:var(--white)}
+
+/* PAGE FOOTER */
+footer{margin-top:3rem;padding:1.5rem 2rem;border-top:1px solid var(--border);background:var(--white);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text3)}
+footer strong{color:var(--text2)}
+
+/* RESPONSIVE */
+@media(max-width:600px){
+  .sol-grid{grid-template-columns:1fr}
+  .emp-grid{grid-template-columns:1fr}
+  .fg{grid-template-columns:1fr}
+
+  .cot-info{flex-direction:column;gap:10px}
+  .cot-cliente{text-align:left}
+  nav{padding:0 1rem}
+  .container{padding:1rem}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <div class="nav-logo">TQ</div>
+    <div>
+      <div class="nav-title">TeleQuoter</div>
+      <div class="nav-sub">Cotizador de Telecomunicaciones</div>
+    </div>
+  </div>
+  <div class="nav-badge">Panduit · Fibra · CCTV</div>
+</nav>
+
+<div class="container">
+
+  <!-- EMPRESA -->
+  <div class="emp-card">
+    <div class="section-label">Datos de la empresa y proyecto</div>
+    <div class="emp-grid">
+      <div class="f"><label>Nombre de la empresa</label><input type="text" id="e_nom" placeholder="Ej: Soluciones TIC S.A.S."/></div>
+      <div class="f"><label>NIT</label><input type="text" id="e_nit" placeholder="900.123.456-7"/></div>
+      <div class="f"><label>Responsable</label><input type="text" id="e_resp" placeholder="Tu nombre completo"/></div>
+      <div class="f"><label>Ciudad</label><input type="text" id="e_ciudad" placeholder="Bogotá"/></div>
+    </div>
+    <div class="f"><label>Cliente / Nombre del proyecto</label><input type="text" id="e_cliente" placeholder="Nombre del cliente o descripción del proyecto"/></div>
+  </div>
+
+  <!-- SELECTOR SOLUCIÓN -->
+  <div class="sol-grid">
+    <div class="sol-card active" id="sc-cable" onclick="selSol('cable')">
+      <span class="sol-icon">🔌</span>
+      <div class="sol-title">Cableado Estructurado</div>
+      <div class="sol-desc">Panduit Cat 6 / Cat 6A<br>UTP y Blindada F/UTP</div>
+    </div>
+    <div class="sol-card" id="sc-fibra" onclick="selSol('fibra')">
+      <span class="sol-icon">📡</span>
+      <div class="sol-title">Fibra Óptica</div>
+      <div class="sol-desc">Monomodo OS2<br>Multimodo OM3 / OM4</div>
+    </div>
+    <div class="sol-card" id="sc-cctv" onclick="selSol('cctv')">
+      <span class="sol-icon">📹</span>
+      <div class="sol-title">CCTV</div>
+      <div class="sol-desc">IP PoE · AHD/TVI<br>DVR/NVR · Accesorios</div>
+    </div>
+  </div>
+
+  <!-- ===== PANEL CABLEADO ===== -->
+  <div class="panel active" id="panel-cable">
+    <div class="main-card">
+      <div class="section-label">Línea de producto Panduit</div>
+      <div class="subtabs">
+        <button class="stab active" onclick="swSub('cable','nk6',this)">NETKEY Cat 6</button>
+        <button class="stab" onclick="swSub('cable','pn6',this)">PANNET Cat 6</button>
+        <button class="stab" onclick="swSub('cable','pn6a',this)">PANNET Cat 6A</button>
+        <button class="stab" onclick="swSub('cable','sh6a',this)">Cat 6A Blindada</button>
+      </div>
+
+      <!-- NETKEY Cat6 -->
+      <div class="spanel active" id="sp-nk6">
+        <div class="fg">
+          <div class="f"><label>Puntos de red</label><input type="number" id="nk_pts" value="24" min="1"/><span class="hint">1 punto = jack + placa + patch cord + cableado</span></div>
+          <div class="f"><label>Distancia promedio por punto (m)</label><input type="number" id="nk_dist" value="30" min="5"/></div>
+          <div class="f"><label>Color del jack</label>
+            <select id="nk_color"><option value="BU">Azul — NK688MBU</option><option value="BL">Negro — NK688MBL</option><option value="RD">Rojo — NK688MRD</option></select>
+          </div>
+          <div class="f"><label>Longitud patch cord</label>
+            <select id="nk_pc"><option value="3">3 pies (0.9m) — NK6PC3BUY</option><option value="5">5 pies (1.5m) — NK6PC5BUY</option><option value="7">7 pies (2.1m) — NK6PC7BUY</option><option value="10">10 pies (3m) — NK6PC10BUY</option></select>
+          </div>
+          <div class="f"><label>Patch panel</label>
+            <select id="nk_pp"><option value="24">24 puertos — NKFP24Y</option><option value="48">48 puertos — NKFP48Y</option><option value="no">No incluir</option></select>
+          </div>
+          <div class="f"><label>Placa de pared</label>
+            <select id="nk_placa"><option value="2">2 puertos — NK2FIWY</option><option value="1">1 puerto — NK1FIWY</option><option value="caja">Caja superficie — NK2BXIW-A</option></select>
+          </div>
+          <div class="f"><label>Mano de obra</label><select id="nk_mo"><option value="1">Sí, incluir</option><option value="0">No incluir</option></select></div>
+          <div class="f"><label>Margen de utilidad (%)</label><input type="number" id="nk_mg" value="25" min="0" max="100"/></div>
+        </div>
+        <button class="btn-gen" onclick="calcNK6()">Generar cotización NETKEY Cat 6</button>
+      </div>
+
+      <!-- PANNET Cat6 -->
+      <div class="spanel" id="sp-pn6">
+        <div class="fg">
+          <div class="f"><label>Puntos de red</label><input type="number" id="pn_pts" value="24" min="1"/></div>
+          <div class="f"><label>Distancia promedio por punto (m)</label><input type="number" id="pn_dist" value="30" min="5"/></div>
+          <div class="f"><label>Módulo RJ45</label>
+            <select id="pn_color"><option value="BL">Azul — CJ688TGBL</option><option value="RD">Rojo — CJ688TPRD</option></select>
+          </div>
+          <div class="f"><label>Patch cord</label>
+            <select id="pn_pc"><option value="0.2m">20 cm — UTP28SP0.2MBU</option><option value="0.9m">0.9 m — UTP28SP3BU</option><option value="1.5m">1.5 m — UTP28SP5BU</option><option value="2.1m">2.1 m — UTP28SP7BU</option><option value="3m">3 m — UTP28SP10BU</option><option value="10m">10 m — UTPSP10MBUY</option></select>
+          </div>
+          <div class="f"><label>Patch panel</label>
+            <select id="pn_pp"><option value="24">24 puertos — CPPL24WBLY</option><option value="24a">24p angulado — CPPLA24WBLY</option><option value="48">48 puertos — CPPL48WBLY</option><option value="no">No incluir</option></select>
+          </div>
+          <div class="f"><label>Placa de pared</label>
+            <select id="pn_placa"><option value="ej2">Ejecutiva 2p — CFPE2IWY</option><option value="ej1">Ejecutiva 1p — CFPE1IWY</option><option value="pl1">Plana 1p — CFPL1IWY</option><option value="pl2">Plana 2p — CFPL2IWY</option></select>
+          </div>
+          <div class="f"><label>Mano de obra</label><select id="pn_mo"><option value="1">Sí</option><option value="0">No</option></select></div>
+          <div class="f"><label>Margen (%)</label><input type="number" id="pn_mg" value="25" min="0"/></div>
+        </div>
+        <button class="btn-gen" onclick="calcPN6()">Generar cotización PANNET Cat 6</button>
+      </div>
+
+      <!-- PANNET Cat6A -->
+      <div class="spanel" id="sp-pn6a">
+        <div class="fg">
+          <div class="f"><label>Puntos de red</label><input type="number" id="pa_pts" value="24" min="1"/></div>
+          <div class="f"><label>Distancia promedio (m)</label><input type="number" id="pa_dist" value="35" min="5"/></div>
+          <div class="f"><label>Tipo de cable</label>
+            <select id="pa_cable"><option value="vm">VariMatrix — PUL6AV04BU-EG</option><option value="hd">Diám. Reducido — PUL6AHD04BU-EG</option></select>
+          </div>
+          <div class="f"><label>Módulo RJ45</label>
+            <select id="pa_color"><option value="BU">Azul — CJ6X88TGBU</option><option value="IW">Blanco — CJ6X88TGIW</option><option value="BL">Negro — CJ6X88TGBL</option><option value="RD">Rojo — CJ6X88TGRD</option></select>
+          </div>
+          <div class="f"><label>Patch cord</label>
+            <select id="pa_pc"><option value="0.2m">20 cm — UTP28X0.2MBU</option><option value="1m">1 m — UTP28X1MBU</option><option value="1.5m">1.5 m — UTP28X1.5MBU</option><option value="2m">2 m — UTP28X2MBU</option><option value="3m">3 m — UTP28X3MBU</option><option value="10m">10 m — UTP6AX10MBU</option></select>
+          </div>
+          <div class="f"><label>Patch panel</label>
+            <select id="pa_pp"><option value="24">24 puertos — CPPL24WBLY</option><option value="24a">24p angulado — CPPLA24WBLY</option><option value="48">48 puertos — CPPL48WBLY</option><option value="no">No incluir</option></select>
+          </div>
+          <div class="f"><label>Placa de pared</label>
+            <select id="pa_placa"><option value="ej2">Ejecutiva 2p — CFPE2IWY</option><option value="ej1">Ejecutiva 1p — CFPE1IWY</option><option value="pl2">Plana 2p — CFPL2IWY</option></select>
+          </div>
+          <div class="f"><label>Mano de obra</label><select id="pa_mo"><option value="1">Sí</option><option value="0">No</option></select></div>
+          <div class="f"><label>Margen (%)</label><input type="number" id="pa_mg" value="25" min="0"/></div>
+        </div>
+        <button class="btn-gen" onclick="calcPA6A()">Generar cotización PANNET Cat 6A</button>
+      </div>
+
+      <!-- BLINDADA 6A -->
+      <div class="spanel" id="sp-sh6a">
+        <div class="fg">
+          <div class="f"><label>Puntos de red</label><input type="number" id="sh_pts" value="24" min="1"/></div>
+          <div class="f"><label>Distancia promedio (m)</label><input type="number" id="sh_dist" value="35" min="5"/></div>
+          <div class="f"><label>Módulo blindado</label>
+            <select id="sh_mod"><option value="std">Estándar — CJS6X88TGY</option><option value="24">Pack 24 — CJS6X88TGY-24</option></select>
+          </div>
+          <div class="f"><label>Patch cord blindado</label>
+            <select id="sh_pc"><option value="0.2m">20 cm — STP28X0.2MBU</option><option value="1m">1 m — STP28X1MBU</option><option value="1.5m">1.5 m — STP28X1.5MBU</option><option value="2m">2 m — STP28X2MBU</option><option value="3m">3 m — STP28X3MBU</option></select>
+          </div>
+          <div class="f"><label>Patch panel blindado</label>
+            <select id="sh_pp"><option value="24">24 puertos — CP24BLY</option><option value="24a">24p angulado — CPA24BLY</option><option value="48">48 puertos — CP48BLY</option><option value="no">No incluir</option></select>
+          </div>
+          <div class="f"><label>Placa de pared</label>
+            <select id="sh_placa"><option value="ej2">Ejecutiva 2p — CFPE2IWY</option><option value="ej1">Ejecutiva 1p — CFPE1IWY</option><option value="pl2">Plana 2p — CFPL2IWY</option></select>
+          </div>
+          <div class="f"><label>Mano de obra</label><select id="sh_mo"><option value="1">Sí</option><option value="0">No</option></select></div>
+          <div class="f"><label>Margen (%)</label><input type="number" id="sh_mg" value="28" min="0"/></div>
+        </div>
+        <button class="btn-gen" onclick="calcSH6A()">Generar cotización Cat 6A Blindada</button>
+      </div>
+    </div>
+    <div id="r-cable"></div>
+    <div id="ruijie-cable"></div>
+  </div>
+
+  <!-- ===== PANEL FIBRA ===== -->
+  <div class="panel" id="panel-fibra">
+    <div class="main-card">
+      <div class="section-label">Parámetros de fibra óptica</div>
+      <div class="fg">
+        <div class="f"><label>Número de tramos / enlaces</label><input type="number" id="f_tramos" value="3" min="1"/></div>
+        <div class="f"><label>Distancia promedio por tramo (m)</label><input type="number" id="f_dist" value="200" min="10"/></div>
+        <div class="f"><label>Tipo de fibra</label>
+          <select id="f_tipo"><option value="mm3">Multimodo OM3 (hasta 300m)</option><option value="mm4">Multimodo OM4 (hasta 550m)</option><option value="sm">Monomodo OS2 (larga distancia)</option></select>
+        </div>
+        <div class="f"><label>Hilos por tramo</label>
+          <select id="f_hilos"><option value="6">6 hilos</option><option value="12">12 hilos</option><option value="24">24 hilos</option></select>
+        </div>
+        <div class="f"><label>Tipo de conector</label>
+          <select id="f_conn"><option value="sc">SC/APC (estándar)</option><option value="lc">LC/UPC (alta densidad)</option></select>
+        </div>
+        <div class="f"><label>Fusionado + certificación OTDR</label>
+          <select id="f_cert"><option value="1">Sí, incluir</option><option value="0">No incluir</option></select>
+        </div>
+        <div class="f"><label>Mano de obra tendido</label><select id="f_mo"><option value="1">Sí</option><option value="0">No</option></select></div>
+        <div class="f"><label>Margen (%)</label><input type="number" id="f_mg" value="25" min="0"/></div>
+      </div>
+      <button class="btn-gen" onclick="calcFibra()">Generar cotización Fibra Óptica</button>
+    </div>
+    <div id="r-fibra"></div>
+  </div>
+
+  <!-- ===== PANEL CCTV ===== -->
+  <div class="panel" id="panel-cctv">
+    <div class="main-card">
+      <div class="section-label">Parámetros del sistema de videovigilancia</div>
+      <div class="fg">
+        <div class="f"><label>Número de cámaras</label><input type="number" id="cc_cam" value="8" min="1"/></div>
+        <div class="f"><label>Distancia promedio por cámara (m)</label><input type="number" id="cc_dist" value="25" min="5"/><span class="hint">Desde DVR/NVR hasta cada cámara</span></div>
+        <div class="f"><label>Tipo de sistema</label>
+          <select id="cc_tipo"><option value="ip">IP PoE (recomendado)</option><option value="ahd">AHD / TVI / CVI (analógico HD)</option></select>
+        </div>
+        <div class="f"><label>Resolución</label>
+          <select id="cc_res"><option value="2mp">2MP / 1080p</option><option value="4mp">4MP / 2.5K</option><option value="8mp">8MP / 4K</option></select>
+        </div>
+        <div class="f"><label>Tipo de cámara</label>
+          <select id="cc_forma"><option value="domo">Domo IR (interior)</option><option value="bullet">Bullet / Bala (exterior)</option><option value="ptz">PTZ motorizada</option></select>
+        </div>
+        <div class="f"><label>Incluir DVR / NVR</label>
+          <select id="cc_dvr"><option value="1">Sí, incluir</option><option value="0">No incluir</option></select>
+        </div>
+        <div class="f"><label>Disco duro</label>
+          <select id="cc_hdd"><option value="0">No incluir</option><option value="1">1 TB</option><option value="2">2 TB</option><option value="4">4 TB</option></select>
+        </div>
+        <div class="f"><label>UPS / Regulador</label>
+          <select id="cc_ups"><option value="0">No incluir</option><option value="1">UPS 500VA</option><option value="2">UPS 1000VA</option></select>
+        </div>
+        <div class="f"><label>Mano de obra</label><select id="cc_mo"><option value="1">Sí</option><option value="0">No</option></select></div>
+        <div class="f"><label>Margen (%)</label><input type="number" id="cc_mg" value="25" min="0"/></div>
+      </div>
+      <button class="btn-gen" onclick="calcCCTV()">Generar cotización CCTV</button>
+    </div>
+    <div id="r-cctv"></div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  <div><strong>TeleQuoter</strong> — Cotizador de Telecomunicaciones · Normas ANSI/TIA-568-C</div>
+  <div>Precios en COP · IVA no incluido · Vigencia 30 días</div>
+</footer>
+
+<script>
+const fmt = n => '$' + Math.round(n).toLocaleString('es-CO');
+let lastCot = null;
+
+/* ---- NAVEGACIÓN ---- */
+function selSol(s) {
+  ['cable','fibra','cctv'].forEach(x => {
+    document.getElementById('sc-'+x).classList.remove('active');
+    document.getElementById('panel-'+x).classList.remove('active');
+  });
+  document.getElementById('sc-'+s).classList.add('active');
+  document.getElementById('panel-'+s).classList.add('active');
+  window.scrollTo({top:document.getElementById('sc-'+s).offsetTop - 70, behavior:'smooth'});
+}
+
+function swSub(sol, sub, btn) {
+  document.querySelectorAll('#panel-'+sol+' .spanel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('#panel-'+sol+' .stab').forEach(b => b.classList.remove('active'));
+  document.getElementById('sp-'+sub).classList.add('active');
+  btn.classList.add('active');
+}
+
+function emp() {
+  return {
+    nom: document.getElementById('e_nom').value || 'Su Empresa',
+    nit: document.getElementById('e_nit').value || '—',
+    resp: document.getElementById('e_resp').value || '—',
+    ciudad: document.getElementById('e_ciudad').value || '—',
+    cliente: document.getElementById('e_cliente').value || '—',
+    fecha: new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'})
+  };
+}
+
+/* ---- PDF ---- */
+function descargarPDF() {
+  if (!lastCot) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W = 210, mg = 14;
+
+  doc.setFillColor(215, 43, 31);
+  doc.rect(0, 0, W, 30, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(17); doc.setFont('helvetica','bold');
+  doc.text('COTIZACIÓN DE TELECOMUNICACIONES', mg, 13);
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text(lastCot.titulo, mg, 20);
+  doc.text('Normas ANSI/TIA-568-C  ·  Precios COP  ·  IVA 19% desglosado', mg, 26);
+
+  doc.setTextColor(30,30,30);
+  doc.setFontSize(9); doc.setFont('helvetica','bold');
+  doc.text(lastCot.emp.nom, mg, 40);
+  doc.setFont('helvetica','normal');
+  doc.text('NIT: ' + lastCot.emp.nit + '  |  ' + lastCot.emp.ciudad + '  |  ' + lastCot.emp.resp, mg, 45);
+  doc.setFont('helvetica','bold');
+  doc.text('Cliente: ' + lastCot.emp.cliente, W/2+2, 40);
+  doc.setFont('helvetica','normal');
+  doc.text('Fecha: ' + lastCot.emp.fecha, W/2+2, 45);
+  doc.text('Vigencia: 30 días', W/2+2, 50);
+
+  // Resumen ejecutivo
+  let startY = 57;
+  const resumenPDF = generarResumen(lastCot.tipoRender, lastCot.datosRender);
+  if (resumenPDF) {
+    doc.setDrawColor(215,43,31); doc.setLineWidth(0.5); doc.line(mg, 54, W-mg, 54);
+    doc.setFillColor(255,248,247); doc.rect(mg, 56, W-mg*2, 1, 'F');
+    doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(215,43,31);
+    doc.text('RESUMEN EJECUTIVO', mg, 60);
+    doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
+    const rLines = doc.splitTextToSize(resumenPDF.replace(/\n+/g,' '), W-mg*2);
+    doc.text(rLines, mg, 65);
+    startY = 65 + rLines.length * 3.6 + 5;
+    doc.setDrawColor(200,200,200); doc.setLineWidth(0.3); doc.line(mg, startY-2, W-mg, startY-2);
+  } else {
+    doc.setDrawColor(215,43,31); doc.setLineWidth(0.5); doc.line(mg, 54, W-mg, 54);
+  }
+
+  // Tabla sin columna utilidad — con fecha de entrega
+  const head = [['Ref.','Descripción','Cant.','Und.','P. Venta Unit.','Total COP','Fecha entrega']];
+  const body = lastCot.items.map(it => {
+    const pv = it.precio * (1 + it.mg/100);
+    const fechaFmt = it.fecha
+      ? new Date(it.fecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})
+      : 'Por confirmar';
+    return [
+      it.ref, it.desc, String(it.qty), it.unit,
+      '$' + Math.round(pv).toLocaleString('es-CO'),
+      '$' + Math.round(pv*it.qty).toLocaleString('es-CO'),
+      fechaFmt,
+    ];
+  });
+
+  doc.autoTable({
+    startY,
+    head, body,
+    margin: { left:mg, right:mg },
+    styles: { fontSize:7.5, cellPadding:2.5, textColor:[30,30,30] },
+    headStyles: { fillColor:[215,43,31], textColor:[255,255,255], fontStyle:'bold', fontSize:7.5 },
+    columnStyles: {
+      0: { cellWidth:24, fontStyle:'bold', textColor:[180,30,20] },
+      1: { cellWidth:67 },
+      2: { cellWidth:10, halign:'right' },
+      3: { cellWidth:10, halign:'center' },
+      4: { cellWidth:27, halign:'right' },
+      5: { cellWidth:27, halign:'right' },
+      6: { cellWidth:21, halign:'center' },
+    },
+    alternateRowStyles: { fillColor:[250,250,248] },
+    foot: [
+      ['','','','','','Subtotal sin IVA:','$'+Math.round(lastCot.subtotal).toLocaleString('es-CO')],
+      ['','','','','','IVA (19%):','$'+Math.round(lastCot.iva).toLocaleString('es-CO')],
+      ['','','','','','TOTAL CON IVA:','$'+Math.round(lastCot.tot).toLocaleString('es-CO')],
+    ],
+    footStyles: { fillColor:[245,240,240], fontStyle:'bold', fontSize:9 },
+  });
+
+  let fy = doc.lastAutoTable.finalY + 8;
+
+  if (lastCot.obs || lastCot.rec) {
+    const boxH = 26;
+    doc.setFillColor(248,248,246);
+    doc.rect(mg, fy, W-mg*2, boxH, 'F');
+    doc.setDrawColor(220,220,215); doc.setLineWidth(0.3);
+    doc.rect(mg, fy, W-mg*2, boxH);
+    const halfW = (W-mg*2)/2 - 4;
+    doc.setFontSize(8); doc.setTextColor(80,80,80);
+    if (lastCot.rec) {
+      doc.setFont('helvetica','bold'); doc.text('Recomendaciones:', mg+3, fy+6);
+      doc.setFont('helvetica','normal');
+      doc.text(doc.splitTextToSize(lastCot.rec, halfW), mg+3, fy+11);
+    }
+    if (lastCot.obs) {
+      const col2 = lastCot.rec ? W/2+2 : mg+3;
+      doc.setFont('helvetica','bold'); doc.text('Observaciones:', col2, fy+6);
+      doc.setFont('helvetica','normal');
+      doc.text(doc.splitTextToSize(lastCot.obs, halfW), col2, fy+11);
+    }
+    fy += boxH + 6;
+  }
+
+  doc.setFontSize(7.5); doc.setTextColor(130,130,130);
+  doc.text('TeleQuoter · Cotizador de Telecomunicaciones · Precios en COP · IVA 19% · Vigencia 30 días.', mg, fy);
+  doc.text('Materiales marca Panduit · Referencias oficiales ANSI/TIA-568-C.', mg, fy+4);
+
+  doc.setFillColor(215,43,31);
+  doc.rect(0, 287, W, 10, 'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(7.5);
+  doc.text('TeleQuoter — Cotizador de Telecomunicaciones', mg, 293);
+  doc.text(lastCot.emp.nom + '  |  ' + lastCot.emp.fecha, W-mg, 293, {align:'right'});
+
+  const filename = 'cotizacion_' + lastCot.slug.replace(/\s/g,'_') + '_' + lastCot.emp.cliente.replace(/\s/g,'_') + '.pdf';
+  doc.save(filename);
+}
+
+/* ---- RESUMEN EJECUTIVO ---- */
+function generarResumen(tipo, datos) {
+  const { pts, dist, cat, tramos, cam, res, tipoSis } = datos;
+  if (tipo === 'cable') {
+    const vel = cat.includes('6A') ? '10 Gbps' : '1 Gbps';
+    const gar = cat.includes('6A') ? '25 años' : '20 años';
+    const blind = cat.includes('Blind') ? ', con blindaje F/UTP para entornos con interferencia electromagnética' : '';
+    return `Se propone la instalación de una red de cableado estructurado ${cat} certificada bajo norma ANSI/TIA-568-C, con capacidad de transmisión de datos a ${vel}${blind}. La solución contempla ${pts} puntos de red distribuidos en promedio a ${dist} metros del rack central, incluyendo todos los componentes de la marca Panduit con garantía de sistema de ${gar}.\n\nEsta infraestructura está diseñada para soportar las necesidades actuales y el crecimiento futuro de la organización, con certificación individual por punto que garantiza el cumplimiento normativo y facilita el mantenimiento preventivo.`;
+  }
+  if (tipo === 'fibra') {
+    return `Se propone la instalación de un backbone de fibra óptica ${datos.fibTipo} en ${tramos} tramo(s) con distancia promedio de ${dist} metros, lo que garantiza transmisión de datos sin pérdidas a largas distancias con inmunidad total a interferencias electromagnéticas.\n\nLa solución incluye fusionado mecánico, certificación OTDR con entrega de informe técnico por tramo, y patch cords de interconexión, garantizando una red troncal de alta disponibilidad alineada con las mejores prácticas de la industria.`;
+  }
+  if (tipo === 'cctv') {
+    const res2 = {'2mp':'Full HD 1080p','4mp':'2.5K','8mp':'4K Ultra HD'}[res];
+    const tip = tipoSis === 'ip' ? 'IP sobre red PoE (Power over Ethernet), eliminando el cableado de alimentación independiente' : 'analógico HD sobre cable coaxial de alta calidad';
+    return `Se propone la implementación de un sistema de videovigilancia con ${cam} cámara(s) de resolución ${res2} en tecnología ${tip}. El sistema permite monitoreo en tiempo real desde dispositivos móviles y computadores, con almacenamiento local en disco duro de alta durabilidad para videovigilancia continua 24/7.\n\nLa solución está diseñada para disuadir incidentes de seguridad, proporcionar evidencia forense y cumplir con los estándares de seguridad empresarial modernos, con configuración remota y alertas en tiempo real.`;
+  }
+  return '';
+}
+
+/* ---- VALIDACIÓN TÉCNICA TIA-568 ---- */
+function validarTecnico(tipo, datos) {
+  const alertas = [];
+  if (tipo === 'cable') {
+    const { dist, cat, pts } = datos;
+    if (dist > 90)
+      alertas.push({nivel:'error', titulo:'Distancia excede límite normativo', msg:`La norma ANSI/TIA-568-C establece un canal permanente máximo de 90m para cableado de cobre. Distancia ingresada: ${dist}m. Considera segmentar el cableado con un IDF intermedio o usar fibra óptica para este tramo.`});
+    else if (dist > 75)
+      alertas.push({nivel:'warn', titulo:'Distancia cercana al límite (${dist}m de 90m máximo)', msg:`Se recomienda verificar la ruta real del cable considerando recorridos verticales, bandejas y radio mínimo de curvatura. Margen disponible: ${90-dist}m.`});
+    if (cat === 'Cat 5e' && pts > 48)
+      alertas.push({nivel:'warn', titulo:'Cat 5e para proyectos grandes', msg:`Para instalaciones de más de 48 puntos se recomienda Cat 6 o superior, ya que futuras actualizaciones a VoIP, PoE++ o 2.5GbE requerirán recableado total con Cat 5e.`});
+  }
+  if (tipo === 'fibra') {
+    const { dist, fibTipo } = datos;
+    if (fibTipo === 'Multimodo OM3' && dist > 300)
+      alertas.push({nivel:'error', titulo:'Distancia excede capacidad OM3', msg:`La fibra multimodo OM3 soporta hasta 300m a 10Gbps (IEEE 802.3ae). Distancia ingresada: ${dist}m. Usa Multimodo OM4 (hasta 550m) o Monomodo OS2 para este enlace.`});
+    if (fibTipo === 'Multimodo OM4' && dist > 550)
+      alertas.push({nivel:'error', titulo:'Distancia excede capacidad OM4', msg:`La fibra multimodo OM4 soporta hasta 550m a 10Gbps. Distancia ingresada: ${dist}m. Para esta distancia se requiere fibra Monomodo OS2 que soporta hasta 10km.`});
+    if (fibTipo === 'Multimodo OM3' && dist > 200)
+      alertas.push({nivel:'warn', titulo:'Considera OM4 para mayor margen', msg:`Con ${dist}m estás usando el ${Math.round(dist/300*100)}% de la capacidad máxima de OM3. Usar OM4 daría un margen de seguridad significativamente mayor.`});
+  }
+  if (tipo === 'cctv') {
+    const { dist, tipoSis } = datos;
+    if (tipoSis === 'ip' && dist > 90)
+      alertas.push({nivel:'error', titulo:'Distancia PoE excede límite Ethernet', msg:`El estándar IEEE 802.3 limita el cableado UTP a 100m. Distancia ingresada: ${dist}m. Para cámaras IP más lejanas usa un switch PoE intermedio o cambia a fibra óptica con media converter.`});
+    if (tipoSis === 'ahd' && dist > 400)
+      alertas.push({nivel:'warn', titulo:'Distancia larga para coaxial AHD', msg:`A más de 400m el cable coaxial RG-59 puede presentar degradación de señal en sistemas AHD/TVI. Considera usar amplificadores de señal o RG-6 de mayor calibre.`});
+  }
+  return alertas;
+}
+
+/* ---- RENDER RESULTADO ---- */
+function render(rid, titulo, slug, items, margenDefault, e, tipoRender, datosRender) {
+  items.forEach(i => { if(i.mg===undefined) i.mg=margenDefault; if(i.fecha===undefined) i.fecha=''; });
+  lastCot = { titulo, slug, items, emp:e, obs:'', rec:'', tipoRender, datosRender };
+
+  // Alertas técnicas
+  const alertas = validarTecnico(tipoRender, datosRender);
+  const alertasHTML = alertas.map(a => `
+    <div class="alert-box ${a.nivel}">
+      <span class="alert-icon">${a.nivel==='error'?'🚫':a.nivel==='warn'?'⚠️':'✅'}</span>
+      <div><div class="alert-title">${a.titulo}</div>${a.msg}</div>
+    </div>`).join('');
+
+  // Resumen ejecutivo
+  const resumen = generarResumen(tipoRender, datosRender);
+
+  // Fecha mínima = hoy
+  const hoy = new Date().toISOString().split('T')[0];
+
+  const rows = items.map((it, idx) => {
+    const pv = it.precio * (1 + it.mg/100);
+    const total = pv * it.qty;
+    return `<tr id="row-${rid}-${idx}">
+      <td class="ref">${it.ref}</td>
+      <td>${it.desc}</td>
+      <td class="num">${it.qty}</td>
+      <td>${it.unit}</td>
+      <td class="num">${fmt(it.precio)}</td>
+      <td class="mg-cell">
+        <div class="mg-wrap">
+          <input class="mg-input" type="number" min="0" max="200" step="1" value="${it.mg}"
+            oninput="updateItemMg('${rid}',${idx},this.value)" />
+          <span>%</span>
+        </div>
+      </td>
+      <td class="pventa" id="pv-${rid}-${idx}">${fmt(pv)}</td>
+      <td class="total-item" id="tot-${rid}-${idx}">${fmt(total)}</td>
+      <td class="date-cell">
+        <input class="date-input" type="date" min="${hoy}" value="${it.fecha}"
+          onchange="lastCot.items[${idx}].fecha=this.value" />
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById(rid).innerHTML = `
+  <div class="res-card">
+    <div class="res-topbar">
+      <div class="res-title">${titulo}<span class="res-badge">${slug}</span></div>
+      <button class="btn-pdf" onclick="descargarPDF()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar PDF
+      </button>
+    </div>
+
+    ${alertasHTML ? `<div style="padding:1rem 1.5rem 0">${alertasHTML}</div>` : ''}
+
+    <div class="cot-info">
+      <div class="cot-empresa">
+        <div class="nombre">${e.nom}</div>
+        <div class="detalle">NIT: ${e.nit} &nbsp;·&nbsp; ${e.ciudad} &nbsp;·&nbsp; ${e.resp}</div>
+      </div>
+      <div class="cot-cliente">
+        <div class="cli">Cliente: <b>${e.cliente}</b></div>
+        <div class="fecha">${e.fecha}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="mat" id="tbl-${rid}">
+        <thead><tr>
+          <th>Ref.</th>
+          <th>Descripción</th>
+          <th style="text-align:right">Cant.</th>
+          <th>Und.</th>
+          <th style="text-align:right">P. Costo</th>
+          <th style="text-align:center">Utilidad %</th>
+          <th style="text-align:right">P. Venta</th>
+          <th style="text-align:right">Total</th>
+          <th style="text-align:center">Fecha entrega</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr class="tf-sub"><td colspan="8" style="text-align:right">Subtotal antes de IVA</td><td class="num" id="fs-sub-${rid}">—</td></tr>
+          <tr class="tf-iva"><td colspan="8" style="text-align:right">IVA (19%)</td><td class="num" id="fs-iva-${rid}">—</td></tr>
+          <tr class="tf-tot"><td colspan="8" style="text-align:right">TOTAL CON IVA</td><td class="num" id="fs-tot-${rid}">—</td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="exec-section">
+      <div class="section-label">Resumen ejecutivo</div>
+      <div class="exec-box" id="exec-box-${rid}">${resumen}</div>
+    </div>
+
+    <div class="obs-section">
+      <div class="section-label">Recomendaciones y observaciones</div>
+      <div class="obs-grid">
+        <div class="obs-box">
+          <label>Recomendaciones técnicas</label>
+          <textarea id="obs-rec-${rid}" placeholder="Ej: Certificar todos los puntos con tester Fluke. Respetar radios de curvatura mínimos ANSI/TIA-568-C..." oninput="lastCot.rec=this.value"></textarea>
+        </div>
+        <div class="obs-box">
+          <label>Observaciones / Condiciones comerciales</label>
+          <textarea id="obs-gen-${rid}" placeholder="Ej: Precios sujetos a cambios. Entrega estimada 15 días hábiles. Garantía 1 año sobre mano de obra..." oninput="lastCot.obs=this.value"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note" id="fn-${rid}">Calculando totales...</div>
+  </div>`;
+
+  recalcTotals(rid);
+  document.getElementById(rid).scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function updateItemMg(rid, idx, val) {
+  const mg = parseFloat(val)||0;
+  lastCot.items[idx].mg = mg;
+  const it = lastCot.items[idx];
+  const pv = it.precio*(1+mg/100);
+  document.getElementById('pv-'+rid+'-'+idx).textContent = fmt(pv);
+  document.getElementById('tot-'+rid+'-'+idx).textContent = fmt(pv*it.qty);
+  recalcTotals(rid);
+}
+
+function recalcTotals(rid) {
+  const sub = lastCot.items.reduce((s,it)=>s+it.qty*it.precio*(1+it.mg/100),0);
+  const iva = sub*0.19;
+  const tot = sub+iva;
+  lastCot.subtotal=sub; lastCot.iva=iva; lastCot.tot=tot;
+  document.getElementById('fs-sub-'+rid).textContent = fmt(sub);
+  document.getElementById('fs-iva-'+rid).textContent = fmt(iva);
+  document.getElementById('fs-tot-'+rid).textContent = fmt(tot);
+  document.getElementById('fn-'+rid).innerHTML =
+    `Subtotal sin IVA: <strong>${fmt(sub)}</strong> &nbsp;·&nbsp; IVA 19%: <strong>${fmt(iva)}</strong> &nbsp;·&nbsp; <strong style="color:var(--red)">Total con IVA: ${fmt(tot)}</strong> &nbsp;·&nbsp; Vigencia 30 días &nbsp;·&nbsp; ANSI/TIA-568-C`;
+}
+
+/* ---- BASE DE DATOS RUIJIE ---- */
+const RUIJIE = {
+  switches: [
+    { ref:'RG-S1910-24GT4SFP-P-E', nombre:'Switch PoE 24 puertos Gigabit', tipo:'Switch PoE',
+      specs:'24x GE PoE+ (IEEE 802.3af/at) + 4x SFP uplink · Presupuesto PoE 370W · Capa 2 gestionable · Ruijie Cloud',
+      precio:1850000, hasta:24, minPts:1 },
+    { ref:'RG-S1910-48GT4SFP-P-E', nombre:'Switch PoE 48 puertos Gigabit', tipo:'Switch PoE',
+      specs:'48x GE PoE+ (IEEE 802.3af/at) + 4x SFP uplink · Presupuesto PoE 740W · Capa 2 gestionable · Ruijie Cloud',
+      precio:3200000, hasta:48, minPts:25 },
+    { ref:'RG-S2910-24GT4SFP-UP-H', nombre:'Switch PoE 24p Gigabit Capa 3', tipo:'Switch L3',
+      specs:'24x GE PoE++ (IEEE 802.3bt) + 4x SFP · Presupuesto PoE 740W · Capa 3 · VLAN · QoS · OSPF/RIP',
+      precio:3800000, hasta:24, minPts:1 },
+    { ref:'RG-S2910-48GT4SFP-UP-H', nombre:'Switch PoE 48p Gigabit Capa 3', tipo:'Switch L3',
+      specs:'48x GE PoE++ (IEEE 802.3bt) + 4x SFP · Presupuesto PoE 1440W · Capa 3 · Stacking · VLAN · QoS',
+      precio:6500000, hasta:48, minPts:25 },
+    { ref:'RG-S5010-24GT4XS-P-H', nombre:'Switch Core 24p 10G SFP+', tipo:'Switch Core',
+      specs:'24x GE PoE + 4x 10G SFP+ uplink · Capa 3 full · Stacking · Para backbone de red',
+      precio:8900000, hasta:24, minPts:49 },
+  ],
+  aps: [
+    { ref:'RG-AP180', nombre:'AP Indoor WiFi 6 doble banda', tipo:'WiFi 6 AP',
+      specs:'WiFi 6 (802.11ax) 2.4GHz + 5GHz · Hasta 1775 Mbps · PoE 802.3af · Hasta 128 clientes simultáneos · Ruijie Cloud',
+      precio:520000, coberturaM2:200 },
+    { ref:'RG-AP840-I', nombre:'AP Indoor WiFi 6 alta densidad', tipo:'WiFi 6 AP HD',
+      specs:'WiFi 6 (802.11ax) tri-band · Hasta 5375 Mbps · PoE 802.3at · Hasta 512 clientes · Ideal auditorios/salas',
+      precio:980000, coberturaM2:400 },
+    { ref:'RG-AP680-E', nombre:'AP Outdoor WiFi 6 omnidireccional', tipo:'WiFi 6 Outdoor',
+      specs:'WiFi 6 (802.11ax) 2.4GHz + 5GHz · IP68 · Hasta 2400 Mbps · PoE 802.3at · Para exteriores y parqueaderos',
+      precio:1150000, coberturaM2:500 },
+  ],
+  routers: [
+    { ref:'RG-NBR6120-E', nombre:'Router empresarial Multi-WAN', tipo:'Router',
+      specs:'4x WAN + 4x LAN Gigabit · VPN IPsec/SSL · Balanceo de carga · Firewall integrado · Hasta 300 usuarios',
+      precio:1280000, hasta:100 },
+    { ref:'RG-NBR3000PE', nombre:'Router Gateway 3 WAN PoE', tipo:'Router Gateway',
+      specs:'3x WAN + 8x LAN GE (4 PoE) · VPN · Control de ancho de banda · AC integrado para APs · Hasta 200 usuarios',
+      precio:980000, hasta:50 },
+    { ref:'RG-EG3230', nombre:'Gateway empresarial avanzado', tipo:'Gateway',
+      specs:'4x WAN GE + 4x LAN GE · VPN · Control de comportamiento · Autenticación portal cautivo · Hasta 500 usuarios',
+      precio:2100000, hasta:300 },
+  ]
+};
+
+function sugerirRuijie(pts, tienePoE) {
+  const sugs = [];
+
+  // --- Switches ---
+  let ptsTotales = pts;
+  let ptsRestantes = pts;
+  const switches = [];
+  // Elegir switch principal
+  const swCandidatos = RUIJIE.switches.filter(s => s.tipo.includes(pts > 40 ? 'L3' : 'PoE') || (pts > 80 && s.tipo === 'Switch Core'));
+  // Lógica de selección: mejor ajuste por capacidad
+  const swPool = RUIJIE.switches.filter(s => !s.tipo.includes('Core'));
+  while(ptsRestantes > 0) {
+    const sw = ptsRestantes > 24
+      ? swPool.find(s => s.hasta === 48)
+      : swPool.find(s => s.hasta === 24);
+    if(!sw) break;
+    const cant = ptsRestantes > 24 ? Math.ceil(ptsRestantes/48) : 1;
+    ptsRestantes -= sw.hasta * cant;
+    // Evitar duplicados
+    const existe = switches.find(x => x.ref === sw.ref);
+    if(existe) { existe.cant += cant; break; }
+    switches.push({...sw, cant});
+    break;
+  }
+  // Si hay muchos puntos, agregar switch core
+  if(pts > 48) {
+    const core = RUIJIE.switches.find(s => s.tipo === 'Switch Core');
+    if(core) switches.push({...core, cant:1});
+  }
+  switches.forEach(sw => {
+    sugs.push({
+      ...sw,
+      qty: sw.cant,
+      motivo: `Necesario para conectar los ${pts} puntos de red${tienePoE ? ' con alimentación PoE para cámaras/teléfonos' : ''}`
+    });
+  });
+
+  // --- Router ---
+  const router = pts <= 50
+    ? RUIJIE.routers.find(r => r.ref === 'RG-NBR3000PE')
+    : pts <= 150
+    ? RUIJIE.routers.find(r => r.ref === 'RG-NBR6120-E')
+    : RUIJIE.routers.find(r => r.ref === 'RG-EG3230');
+  if(router) sugs.push({...router, qty:1, motivo:`Gateway para gestión de red, VPN y control de ancho de banda para ${pts} usuarios estimados`});
+
+  // --- APs (1 AP por cada 8-10 puntos de red, mínimo 1) ---
+  const numAPs = Math.max(1, Math.ceil(pts / 9));
+  const ap = pts > 30 ? RUIJIE.aps.find(a => a.ref==='RG-AP840-I') : RUIJIE.aps.find(a => a.ref==='RG-AP180');
+  if(ap) sugs.push({...ap, qty:numAPs, motivo:`Cobertura WiFi 6 estimada para el área del proyecto (1 AP por cada ~9 puntos de red)`});
+
+  return sugs;
+}
+
+function renderRuijie(containerId, pts, tienePoE) {
+  const sugs = sugerirRuijie(pts, tienePoE);
+  const totalRuijie = sugs.reduce((s,r) => s + r.precio*r.qty, 0);
+
+  const cards = sugs.map(r => `
+    <div class="ruijie-card">
+      <div class="ruijie-card-top">
+        <span class="ruijie-ref">${r.ref}</span>
+        <span class="ruijie-tipo">${r.tipo}</span>
+      </div>
+      <div class="ruijie-name">${r.nombre}${r.qty>1 ? ` <span style="font-size:12px;color:#005BAC">×${r.qty}</span>` : ''}</div>
+      <div class="ruijie-specs">${r.specs}</div>
+      <div class="ruijie-footer">
+        <div>
+          <div class="ruijie-price">${fmt(r.precio * r.qty)}</div>
+          ${r.qty>1 ? `<div style="font-size:10px;color:#4A6A8A">${fmt(r.precio)} c/u</div>` : ''}
+        </div>
+        <div class="ruijie-why">${r.motivo}</div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById(containerId).innerHTML = `
+    <div class="ruijie-section">
+      <div class="ruijie-header">
+        <div class="ruijie-logo">RUIJIE</div>
+        <div>
+          <div class="ruijie-title">Equipos activos sugeridos para este proyecto</div>
+          <div class="ruijie-sub">Switches · Router · WiFi 6 — seleccionados automáticamente según los ${pts} puntos cotizados</div>
+        </div>
+      </div>
+      <div class="ruijie-grid">${cards}</div>
+      <div class="ruijie-note">
+        <strong>Total equipos activos Ruijie (referencia):</strong> ${fmt(totalRuijie)} + IVA &nbsp;·&nbsp;
+        Precios de referencia mercado colombiano 2025 — verificar con distribuidor autorizado &nbsp;·&nbsp;
+        Garantía 5 años Ruijie Networks &nbsp;·&nbsp;
+        <span class="ruijie-toggle" onclick="this.closest('.ruijie-section').style.display='none'">Ocultar esta sección</span>
+      </div>
+    </div>`;
+}
+
+/* ---- TABLAS DE PRECIOS Y REFERENCIAS ---- */
+const PC_NK = {3:14000,5:16000,7:18000,10:22000};
+const PC_PN = {'0.2m':8000,'0.9m':12000,'1.5m':14000,'2.1m':16000,'3m':19000,'10m':38000};
+const PC_PA = {'0.2m':14000,'1m':18000,'1.5m':20000,'2m':22000,'3m':26000,'10m':55000};
+const PC_SH = {'0.2m':22000,'1m':28000,'1.5m':32000,'2m':36000,'3m':42000};
+const PP_NK = {24:{ref:'NKFP24Y',p:245000},48:{ref:'NKFP48Y',p:395000}};
+const PP_PN = {24:{ref:'CPPL24WBLY',p:265000},'24a':{ref:'CPPLA24WBLY',p:285000},48:{ref:'CPPL48WBLY',p:430000}};
+const PP_SH = {24:{ref:'CP24BLY',p:420000},'24a':{ref:'CPA24BLY',p:445000},48:{ref:'CP48BLY',p:720000}};
+const PL_NK = {2:{ref:'NK2FIWY',p:9500},1:{ref:'NK1FIWY',p:7500},caja:{ref:'NK2BXIW-A',p:22000}};
+const PL_PN = {ej2:{ref:'CFPE2IWY',p:11000},ej1:{ref:'CFPE1IWY',p:8500},pl1:{ref:'CFPL1IWY',p:6500},pl2:{ref:'CFPL2IWY',p:8000}};
+
+/* ---- CÁLCULOS CABLEADO ---- */
+function calcNK6() {
+  const pts=+document.getElementById('nk_pts').value, dist=+document.getElementById('nk_dist').value;
+  const color=document.getElementById('nk_color').value, pcK=+document.getElementById('nk_pc').value;
+  const ppV=document.getElementById('nk_pp').value, plV=document.getElementById('nk_placa').value;
+  const mo=+document.getElementById('nk_mo').value, mg=+document.getElementById('nk_mg').value;
+  const e=emp(), metros=Math.ceil(dist*pts*1.15);
+  const jR={BU:'NK688MBU',BL:'NK688MBL',RD:'NK688MRD'};
+  const pcR={3:'NK6PC3BUY',5:'NK6PC5BUY',7:'NK6PC7BUY',10:'NK6PC10BUY'};
+  const pl=PL_NK[plV], nPl=(plV==='1'||plV==='caja')?pts:Math.ceil(pts/2);
+  const items=[
+    {ref:'NUL6C04BU-FE',desc:'Cable Cat 6 U/UTP LSZH 24AWG (caja 305m)',qty:Math.ceil(metros/305),unit:'caja',precio:385000},
+    {ref:jR[color],desc:'Módulo Jack RJ45 Cat 6 Keystone UTP',qty:pts,unit:'und',precio:32000},
+    {ref:pl.ref,desc:'Placa de pared Keystone vertical',qty:nPl,unit:'und',precio:pl.p},
+    {ref:pcR[pcK],desc:`Patch cord RJ45 Cat 6 ${pcK} pies UTP CM`,qty:pts,unit:'und',precio:PC_NK[pcK]},
+    {ref:'NCMHF1',desc:'Organizador horizontal 1RU frontal con radios',qty:Math.ceil(pts/24),unit:'und',precio:95000},
+  ];
+  if(ppV!=='no'){
+    const pp=PP_NK[ppV];
+    items.push({ref:pp.ref,desc:`Panel de parcheo 1RU ${ppV} puertos Keystone`,qty:Math.ceil(pts/+ppV),unit:'und',precio:pp.p});
+    items.push({ref:'SRB19BLY',desc:'Barra de alivio de tensión 2 pulgadas',qty:Math.ceil(pts/+ppV),unit:'und',precio:28000});
+  }
+  if(mo){
+    items.push({ref:'—',desc:'Mano de obra certificada por punto',qty:pts,unit:'punto',precio:65000});
+    items.push({ref:'—',desc:'Certificación con tester + informe PDF',qty:pts,unit:'punto',precio:22000});
+  }
+  render('r-cable','Cotización Cableado NETKEY Cat 6 UTP','NETKEY Cat6',items,mg,e,'cable',{pts,dist,cat:'NETKEY Cat 6 UTP'});
+  renderRuijie('ruijie-cable', pts, +document.getElementById('nk_mo').value===1);
+}
+
+function calcPN6() {
+  const pts=+document.getElementById('pn_pts').value, dist=+document.getElementById('pn_dist').value;
+  const color=document.getElementById('pn_color').value, pcK=document.getElementById('pn_pc').value;
+  const ppV=document.getElementById('pn_pp').value, plV=document.getElementById('pn_placa').value;
+  const mo=+document.getElementById('pn_mo').value, mg=+document.getElementById('pn_mg').value;
+  const e=emp(), metros=Math.ceil(dist*pts*1.15);
+  const jR={BL:'CJ688TGBL',RD:'CJ688TPRD'};
+  const pcR={'0.2m':'UTP28SP0.2MBU','0.9m':'UTP28SP3BU','1.5m':'UTP28SP5BU','2.1m':'UTP28SP7BU','3m':'UTP28SP10BU','10m':'UTPSP10MBUY'};
+  const pl=PL_PN[plV], nPl=(plV==='ej1'||plV==='pl1')?pts:Math.ceil(pts/2);
+  const items=[
+    {ref:'PUL6004BU-FE',desc:'Cable Cat 6 UTP LSZH 23AWG (caja 305m)',qty:Math.ceil(metros/305),unit:'caja',precio:395000},
+    {ref:jR[color]||'CJ688TGBL',desc:'Módulo conector RJ45 Cat 6 UTP',qty:pts,unit:'und',precio:28000},
+    {ref:pl.ref,desc:'Placa de pared MiniCom con etiquetas',qty:nPl,unit:'und',precio:pl.p},
+    {ref:pcR[pcK],desc:`Patch cord RJ45 Cat 6 ${pcK} 28AWG LSZH`,qty:pts,unit:'und',precio:PC_PN[pcK]},
+    {ref:'NCMHF1',desc:'Organizador horizontal 1RU frontal con radios',qty:Math.ceil(pts/24),unit:'und',precio:95000},
+  ];
+  if(ppV!=='no'){
+    const ppN=ppV.replace('a','');
+    const pp=PP_PN[ppV];
+    items.push({ref:pp.ref,desc:`Panel parcheo ${ppV.includes('a')?'angulado ':''}${ppN}p Cat 6`,qty:Math.ceil(pts/+ppN),unit:'und',precio:pp.p});
+    items.push({ref:'SRB19BLY',desc:'Barra de alivio de tensión',qty:Math.ceil(pts/+ppN),unit:'und',precio:28000});
+  }
+  if(mo){
+    items.push({ref:'—',desc:'Mano de obra certificada por punto',qty:pts,unit:'punto',precio:65000});
+    items.push({ref:'—',desc:'Certificación con tester + informe PDF',qty:pts,unit:'punto',precio:22000});
+  }
+  render('r-cable','Cotización Cableado PANNET Cat 6 UTP','PANNET Cat6',items,mg,e,'cable',{pts,dist,cat:'PANNET Cat 6 UTP'});
+  renderRuijie('ruijie-cable', pts, mo===1);
+}
+
+function calcPA6A() {
+  const pts=+document.getElementById('pa_pts').value, dist=+document.getElementById('pa_dist').value;
+  const cT=document.getElementById('pa_cable').value, color=document.getElementById('pa_color').value;
+  const pcK=document.getElementById('pa_pc').value, ppV=document.getElementById('pa_pp').value;
+  const plV=document.getElementById('pa_placa').value, mo=+document.getElementById('pa_mo').value, mg=+document.getElementById('pa_mg').value;
+  const e=emp(), metros=Math.ceil(dist*pts*1.15);
+  const cR={vm:'PUL6AV04BU-EG',hd:'PUL6AHD04BU-EG'};
+  const jR={BU:'CJ6X88TGBU',IW:'CJ6X88TGIW',BL:'CJ6X88TGBL',RD:'CJ6X88TGRD'};
+  const pcR={'0.2m':'UTP28X0.2MBU','1m':'UTP28X1MBU','1.5m':'UTP28X1.5MBU','2m':'UTP28X2MBU','3m':'UTP28X3MBU','10m':'UTP6AX10MBU'};
+  const pl=PL_PN[plV], nPl=(plV==='ej1'||plV==='pl1')?pts:Math.ceil(pts/2);
+  const items=[
+    {ref:cR[cT],desc:`Cable Cat 6A U/UTP ${cT==='hd'?'Diám. Reducido':'VariMatrix'} LSZH 23AWG (caja 305m)`,qty:Math.ceil(metros/305),unit:'caja',precio:620000},
+    {ref:jR[color],desc:'Módulo RJ45 Cat 6A UTP',qty:pts,unit:'und',precio:52000},
+    {ref:pl.ref,desc:'Placa de pared MiniCom con etiquetas',qty:nPl,unit:'und',precio:pl.p},
+    {ref:pcR[pcK],desc:`Patch cord RJ45 Cat 6A ${pcK} 28AWG LSZH`,qty:pts,unit:'und',precio:PC_PA[pcK]},
+    {ref:'NCMHF1',desc:'Organizador horizontal 1RU frontal con radios',qty:Math.ceil(pts/24),unit:'und',precio:95000},
+  ];
+  if(ppV!=='no'){
+    const ppN=ppV.replace('a','');
+    const pp=PP_PN[ppV];
+    items.push({ref:pp.ref,desc:`Panel parcheo ${ppV.includes('a')?'angulado ':''}${ppN}p`,qty:Math.ceil(pts/+ppN),unit:'und',precio:pp.p});
+    items.push({ref:'SRB19BLY',desc:'Barra de alivio de tensión',qty:Math.ceil(pts/+ppN),unit:'und',precio:28000});
+  }
+  if(mo){
+    items.push({ref:'—',desc:'Mano de obra certificada Cat 6A por punto',qty:pts,unit:'punto',precio:72000});
+    items.push({ref:'—',desc:'Certificación Cat 6A tester + informe PDF',qty:pts,unit:'punto',precio:25000});
+  }
+  render('r-cable','Cotización Cableado PANNET Cat 6A UTP','PANNET Cat6A',items,mg,e,'cable',{pts,dist,cat:'PANNET Cat 6A UTP'});
+  renderRuijie('ruijie-cable', pts, mo===1);
+}
+
+function calcSH6A() {
+  const pts=+document.getElementById('sh_pts').value, dist=+document.getElementById('sh_dist').value;
+  const modT=document.getElementById('sh_mod').value, pcK=document.getElementById('sh_pc').value;
+  const ppV=document.getElementById('sh_pp').value, plV=document.getElementById('sh_placa').value;
+  const mo=+document.getElementById('sh_mo').value, mg=+document.getElementById('sh_mg').value;
+  const e=emp(), metros=Math.ceil(dist*pts*1.15);
+  const pl=PL_PN[plV], nPl=plV==='ej1'?pts:Math.ceil(pts/2);
+  const modR=modT==='24'?'CJS6X88TGY-24':'CJS6X88TGY';
+  const modP=modT==='24'?680000:30000;
+  const modQ=modT==='24'?Math.ceil(pts/24):pts;
+  const pcR={'0.2m':'STP28X0.2MBU','1m':'STP28X1MBU','1.5m':'STP28X1.5MBU','2m':'STP28X2MBU','3m':'STP28X3MBU'};
+  const items=[
+    {ref:'PFL6X04BU-CEG',desc:'Cable Cat 6A F/UTP LSZH 23AWG (caja 305m)',qty:Math.ceil(metros/305),unit:'caja',precio:780000},
+    {ref:modR,desc:'Módulo RJ45 Cat 6A Blindado'+(modT==='24'?' (pack 24 und)':''),qty:modQ,unit:modT==='24'?'pack':'und',precio:modP},
+    {ref:pl.ref,desc:'Placa de pared MiniCom con etiquetas',qty:nPl,unit:'und',precio:pl.p},
+    {ref:pcR[pcK],desc:`Patch cord RJ45 Cat 6A blindado F/UTP ${pcK}`,qty:pts,unit:'und',precio:PC_SH[pcK]},
+    {ref:'NCMHF1',desc:'Organizador horizontal 1RU frontal con radios',qty:Math.ceil(pts/24),unit:'und',precio:95000},
+    {ref:'FPS6X88MTG',desc:'Plug RJ45 Cat 6A blindado campo (5% reserva)',qty:Math.max(1,Math.ceil(pts*0.05)),unit:'und',precio:35000},
+  ];
+  if(ppV!=='no'){
+    const ppN=ppV.replace('a','');
+    const pp=PP_SH[ppV];
+    items.push({ref:pp.ref,desc:`Panel parcheo blindado ${ppV.includes('a')?'angulado ':''}${ppN}p`,qty:Math.ceil(pts/+ppN),unit:'und',precio:pp.p});
+    items.push({ref:'SRB19BLY',desc:'Barra de alivio de tensión',qty:Math.ceil(pts/+ppN),unit:'und',precio:28000});
+  }
+  if(mo){
+    items.push({ref:'—',desc:'Mano de obra certificada blindada por punto',qty:pts,unit:'punto',precio:80000});
+    items.push({ref:'—',desc:'Certificación tester blindada + informe PDF',qty:pts,unit:'punto',precio:28000});
+  }
+  render('r-cable','Cotización Cableado Cat 6A Blindada F/UTP','Cat6A Blindada',items,mg,e,'cable',{pts,dist,cat:'Cat 6A Blindada F/UTP'});
+  renderRuijie('ruijie-cable', pts, mo===1);
+}
+
+/* ---- FIBRA ÓPTICA ---- */
+function calcFibra() {
+  const tramos=+document.getElementById('f_tramos').value, dist=+document.getElementById('f_dist').value;
+  const tipo=document.getElementById('f_tipo').value, hilos=+document.getElementById('f_hilos').value;
+  const conn=document.getElementById('f_conn').value, cert=+document.getElementById('f_cert').value;
+  const mo=+document.getElementById('f_mo').value, mg=+document.getElementById('f_mg').value;
+  const e=emp(), metros=Math.ceil(dist*tramos*1.12);
+  const pM={mm3:3200,mm4:4500,sm:2800};
+  const pConn={mm3:38000,mm4:45000,sm:32000};
+  const tL={mm3:'Multimodo OM3',mm4:'Multimodo OM4',sm:'Monomodo OS2'};
+  const cRef=conn==='lc'?'LC/UPC':'SC/APC';
+  const items=[
+    {ref:'Cable FO '+tL[tipo],desc:`Cable fibra óptica ${tL[tipo]} ${hilos} hilos LSZH (12% desperdicio incluido)`,qty:metros,unit:'m',precio:pM[tipo]},
+    {ref:`Conector ${cRef}`,desc:`Conector ${cRef} ${tL[tipo]} preconectorizado`,qty:tramos*2*(hilos/2),unit:'und',precio:pConn[tipo]},
+    {ref:'Patch cord FO 2m',desc:`Patch cord fibra ${tL[tipo]} ${cRef}-${cRef} 2m`,qty:tramos*2,unit:'und',precio:tipo==='sm'?38000:42000},
+    {ref:`Bandeja FO ${hilos}p`,desc:`Bandeja distribución FO ${hilos} puertos`,qty:tramos*2,unit:'und',precio:85000},
+    {ref:'Kit empalme FO',desc:'Manga de empalme y materiales de protección',qty:tramos,unit:'tramo',precio:45000},
+  ];
+  if(cert){
+    items.push({ref:'Fusionado FO',desc:'Fusionado de hilos de fibra por punto',qty:hilos*tramos*2,unit:'fusión',precio:18000});
+    items.push({ref:'Cert. OTDR',desc:'Certificación OTDR + informe técnico por tramo',qty:tramos,unit:'tramo',precio:280000});
+  }
+  if(mo) items.push({ref:'—',desc:'Mano de obra tendido, canalización y conectorización',qty:tramos,unit:'tramo',precio:320000});
+  render('r-fibra','Cotización Fibra Óptica — '+tL[tipo],tL[tipo],items,mg,e,'fibra',{tramos,dist,fibTipo:tL[tipo]});
+}
+
+/* ---- CCTV ---- */
+function calcCCTV() {
+  const cam=+document.getElementById('cc_cam').value, dist=+document.getElementById('cc_dist').value;
+  const tipo=document.getElementById('cc_tipo').value, res=document.getElementById('cc_res').value;
+  const forma=document.getElementById('cc_forma').value, dvr=+document.getElementById('cc_dvr').value;
+  const hdd=+document.getElementById('cc_hdd').value, ups=+document.getElementById('cc_ups').value;
+  const mo=+document.getElementById('cc_mo').value, mg=+document.getElementById('cc_mg').value;
+  const e=emp(), metros=Math.ceil(dist*cam*1.12);
+  const camP={ip:{'2mp':135000,'4mp':195000,'8mp':310000},ahd:{'2mp':95000,'4mp':145000,'8mp':220000}};
+  const ptzP={'2mp':580000,'4mp':850000,'8mp':1400000};
+  const resL={'2mp':'2MP 1080p','4mp':'4MP 2.5K','8mp':'8MP 4K'};
+  const formaL={domo:'Domo IR 30m',bullet:'Bullet exterior IR 40m',ptz:'PTZ motorizada'};
+  const tipoL={ip:'IP PoE',ahd:'AHD/TVI'};
+  const cableDesc=tipo==='ip'?'Cable UTP Cat 5e PoE (12% desperdicio)':'Cable coaxial RG-59 + alimentación 2x18AWG';
+  const cableP=tipo==='ip'?1800:2200;
+  const dvrSize=cam<=4?4:cam<=8?8:cam<=16?16:32;
+  const dvrP=tipo==='ip'?{4:980000,8:1450000,16:2200000,32:3800000}[dvrSize]:{4:680000,8:1050000,16:1680000,32:2800000}[dvrSize];
+  const dvrRef=tipo==='ip'?`NVR ${dvrSize}ch H.265+`:`DVR ${dvrSize}ch Penta-Brid`;
+  const hddP={0:0,1:180000,2:290000,4:520000};
+  const upsP={0:0,1:320000,2:580000};
+  const pCam=forma==='ptz'?ptzP[res]:camP[tipo][res];
+
+  const items=[
+    {ref:`Cámara ${tipoL[tipo]}`,desc:`Cámara ${tipoL[tipo]} ${resL[res]} ${formaL[forma]}`,qty:cam,unit:'und',precio:pCam},
+    {ref:cableDesc,desc:cableDesc,qty:metros,unit:'m',precio:cableP},
+    {ref:'Soporte ménsula',desc:'Soporte tipo ménsula para cámara',qty:cam,unit:'und',precio:18000},
+    {ref:tipo==='ip'?'Conector RJ-45':'Conector BNC',desc:tipo==='ip'?'Patch cord RJ-45 Cat 5e 1m':'Conector BNC compresión + cable alimentación',qty:cam*2,unit:'und',precio:tipo==='ip'?1200:2500},
+  ];
+  if(tipo==='ahd') items.push({ref:'Fuente regulada 12V',desc:`Fuente de alimentación regulada 12V (${Math.ceil(cam/4)} cámaras c/u)`,qty:Math.ceil(cam/4),unit:'und',precio:48000});
+  if(dvr) items.push({ref:dvrRef,desc:`${dvrRef} con software gestión remota`,qty:1,unit:'und',precio:dvrP});
+  if(hdd>0) items.push({ref:`HDD ${hdd}TB Surv.`,desc:`Disco duro ${hdd}TB para videovigilancia 24/7`,qty:1,unit:'und',precio:hddP[hdd]});
+  if(ups>0) items.push({ref:`UPS ${ups===1?500:1000}VA`,desc:`UPS ${ups===1?'500VA':'1000VA'} protección de equipos`,qty:1,unit:'und',precio:upsP[ups]});
+  if(mo){
+    items.push({ref:'—',desc:'Instalación y cableado por cámara',qty:cam,unit:'und',precio:55000});
+    items.push({ref:'—',desc:'Configuración DVR/NVR + app móvil + capacitación',qty:1,unit:'global',precio:180000});
+  }
+  render('r-cctv',`Cotización CCTV ${tipoL[tipo]} ${resL[res]}`,`${tipoL[tipo]} ${resL[res]}`,items,mg,e,'cctv',{cam,dist,res,tipoSis:tipo});
+}
+</script>
+</body>
+</html>
