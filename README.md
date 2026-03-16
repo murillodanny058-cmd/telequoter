@@ -1,0 +1,2 @@
+# telequoter
+PRACTICA 
