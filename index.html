@@ -3894,17 +3894,20 @@ async function crearUsuario() {
 
   try {
     // Firebase: usar app secundaria para no cerrar sesión del admin
-    const appSecundaria = firebase.app('secundaria-temp-'+Date.now()) || null;
+    const appName = 'secundaria-' + Date.now();
     let secondaryApp;
     try {
-      secondaryApp = firebase.initializeApp(firebaseConfig, 'secundaria-'+Date.now());
+      secondaryApp = firebase.initializeApp(firebaseConfig, appName);
     } catch(e) {
-      secondaryApp = firebase.apps.find(a => a.name !== '[DEFAULT]') || firebase.initializeApp(firebaseConfig, 'sec');
+      // Si ya existe, buscarla
+      secondaryApp = firebase.app(appName);
     }
     const authSec = secondaryApp.auth();
     const cred = await authSec.createUserWithEmailAndPassword(email, pass);
     const newUid = cred.user.uid;
     await authSec.signOut();
+    // Limpiar app secundaria
+    try { await secondaryApp.delete(); } catch(e) {}
 
     await _sb.from('usuarios').insert({ id: newUid, email, nombre, rol, creado_ms: Date.now(), creado_por: currentUser.uid });
     status.style.color='#2D6A1F';
