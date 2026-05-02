@@ -6,7 +6,10 @@
 <title>TeleQuoter — Cotizador de Telecomunicaciones</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -1531,7 +1534,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function sincronizarConsecutivo() {
   try {
-    const { data: _sc } = await _sb.from('cotizaciones').select('consec').eq('uid', currentUser.id).limit(200);
+    const { data: _sc } = await _sb.from('cotizaciones').select('consec').eq('uid', currentUser.uid).limit(200);
     if (_sc && _sc.length > 0) {
       // Find highest COT-XXX number
       let maxNum = 0;
@@ -3035,15 +3038,171 @@ function agregarRuijieACot(ref, nombre, precio, qty) {
 }
 
 /* ============================================================
-   SUPABASE
-   ⚠️  SEGURIDAD: La anon key es visible en el código fuente.
-   Asegúrate de tener Row Level Security (RLS) habilitado en
-   todas las tablas de Supabase para proteger los datos.
-   Ver: https://supabase.com/docs/guides/auth/row-level-security
+   FIREBASE — Auth + Firestore
    ============================================================ */
-const SUPABASE_URL = 'https://ydfhuscgtenemlykxpfv.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkZmh1c2NndGVuZW1seWt4cGZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NzMwMDAsImV4cCI6MjA5MzI0OTAwMH0.7lG4a2U2XakF1iLUR4v5si9bumbsKmQDyF5qz01LbW4';
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const firebaseConfig = {
+  apiKey: "AIzaSyA3HjayUhoD6D1YXTHUEkmyA7LyeNyUPZg",
+  authDomain: "telequoter-b8148.firebaseapp.com",
+  databaseURL: "https://telequoter-b8148-default-rtdb.firebaseio.com",
+  projectId: "telequoter-b8148",
+  storageBucket: "telequoter-b8148.firebasestorage.app",
+  messagingSenderId: "238574057816",
+  appId: "1:238574057816:web:77060b39f12dee5cf6cd2d"
+};
+firebase.initializeApp(firebaseConfig);
+const _auth = firebase.auth();
+const _db   = firebase.firestore();
+
+// ── Helpers para traducir la API de Supabase a Firestore ──
+// Estos wrappers permiten que el resto del código cambie lo mínimo posible
+
+const _sb = {
+  auth: {
+    onAuthStateChange: (cb) => {
+      _auth.onAuthStateChanged(user => {
+        cb(user ? 'SIGNED_IN' : 'SIGNED_OUT', user ? { user } : null);
+      });
+    },
+    signInWithPassword: async ({ email, password }) => {
+      try {
+        const cred = await _auth.signInWithEmailAndPassword(email, password);
+        return { data: { user: cred.user }, error: null };
+      } catch(e) {
+        return { data: null, error: { message: _fbErrMsg(e.code) } };
+      }
+    },
+    signOut: async () => { await _auth.signOut(); },
+    signUp: async ({ email, password }) => {
+      try {
+        const cred = await _auth.createUserWithEmailAndPassword(email, password);
+        return { data: { user: cred.user }, error: null };
+      } catch(e) {
+        return { data: null, error: { message: _fbErrMsg(e.code) } };
+      }
+    },
+    getUser: async () => {
+      const u = _auth.currentUser;
+      return { data: { user: u }, error: null };
+    }
+  },
+  from: (coleccion) => new _SbTable(coleccion)
+};
+
+function _fbErrMsg(code) {
+  const msgs = {
+    'auth/user-not-found':      'Correo o contraseña incorrectos.',
+    'auth/wrong-password':      'Correo o contraseña incorrectos.',
+    'auth/invalid-credential':  'Correo o contraseña incorrectos.',
+    'auth/email-already-in-use':'Este correo ya está registrado.',
+    'auth/weak-password':       'La contraseña debe tener mínimo 6 caracteres.',
+    'auth/too-many-requests':   'Demasiados intentos. Espera un momento.',
+    'auth/network-request-failed':'Error de conexión. Revisa tu internet.'
+  };
+  return msgs[code] || ('Error: ' + code);
+}
+
+// ── Clase que emula la API de Supabase sobre Firestore ──
+class _SbTable {
+  constructor(col) {
+    this._col   = col;
+    this._filters = [];
+    this._lim   = null;
+    this._orderF = null;
+    this._orderD = 'asc';
+    this._selFields = null;
+  }
+  select(fields) { this._selFields = fields; return this; }
+  eq(field, val) { this._filters.push({ field, op: '==', val }); return this; }
+  limit(n)       { this._lim = n; return this; }
+  order(field, opts) {
+    this._orderF = field;
+    this._orderD = (opts && opts.ascending === false) ? 'desc' : 'asc';
+    return this;
+  }
+  single() { this._single = true; return this; }
+
+  async _exec() {
+    try {
+      let ref = _db.collection(this._col);
+      // Separar filtros por campo 'id' (doc ID) vs campos normales
+      const idFilter = this._filters.find(f => f.field === 'id');
+      const otherFilters = this._filters.filter(f => f.field !== 'id');
+
+      if (idFilter) {
+        // Búsqueda directa por doc ID
+        const doc = await _db.collection(this._col).doc(idFilter.val).get();
+        if (this._single) {
+          return doc.exists ? { data: { id: doc.id, ...doc.data() }, error: null } : { data: null, error: { message: 'No encontrado' } };
+        }
+        return doc.exists ? { data: [{ id: doc.id, ...doc.data() }], error: null } : { data: [], error: null };
+      }
+
+      otherFilters.forEach(f => { ref = ref.where(f.field, f.op, f.val); });
+      if (this._orderF) ref = ref.orderBy(this._orderF, this._orderD);
+      if (this._lim)    ref = ref.limit(this._lim);
+      const snap = await ref.get();
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (this._single) {
+        return data.length > 0 ? { data: data[0], error: null } : { data: null, error: { message: 'No encontrado' } };
+      }
+      return { data, error: null };
+    } catch(e) {
+      return { data: this._single ? null : [], error: { message: e.message } };
+    }
+  }
+
+  then(resolve, reject) { return this._exec().then(resolve, reject); }
+
+  async insert(payload) {
+    try {
+      const items = Array.isArray(payload) ? payload : [payload];
+      const batch = _db.batch();
+      items.forEach(item => {
+        // Si el item tiene campo 'id', usarlo como doc ID
+        const docId = item.id || _db.collection(this._col).doc().id;
+        const { id: _ignore, ...rest } = item;
+        batch.set(_db.collection(this._col).doc(docId), rest);
+      });
+      await batch.commit();
+      return { data: payload, error: null };
+    } catch(e) { return { data: null, error: { message: e.message } }; }
+  }
+
+  async update(payload) {
+    try {
+      if (this._filters.length === 0) throw new Error('update requiere filtro eq()');
+      const idFilter = this._filters.find(f => f.field === 'id');
+      if (idFilter) {
+        await _db.collection(this._col).doc(idFilter.val).update(payload);
+        return { data: payload, error: null };
+      }
+      let ref = _db.collection(this._col);
+      this._filters.forEach(f => { ref = ref.where(f.field, f.op, f.val); });
+      const snap = await ref.get();
+      const batch = _db.batch();
+      snap.docs.forEach(d => batch.update(d.ref, payload));
+      await batch.commit();
+      return { data: payload, error: null };
+    } catch(e) { return { data: null, error: { message: e.message } }; }
+  }
+
+  async delete() {
+    try {
+      const idFilter = this._filters.find(f => f.field === 'id');
+      if (idFilter) {
+        await _db.collection(this._col).doc(idFilter.val).delete();
+        return { data: null, error: null };
+      }
+      let ref = _db.collection(this._col);
+      this._filters.forEach(f => { ref = ref.where(f.field, f.op, f.val); });
+      const snap = await ref.get();
+      const batch = _db.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      return { data: null, error: null };
+    } catch(e) { return { data: null, error: { message: e.message } }; }
+  }
+}
 let currentUser = null;
 let currentRole = 'vendedor'; // FIX: declaración explícita evita variable global implícita
 let histData = [];
@@ -3055,13 +3214,13 @@ _sb.auth.onAuthStateChange(async (event, session) => {
     currentUser = user;
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('nav-uname').textContent = user.email.split('@')[0];
-    console.log('UID:', user.id);
+    console.log('UID:', user.uid);
     try {
       // FIX: intentar cargar el rol con reintento y mejor manejo de errores
       let rolData = null;
       for (let intento = 0; intento < 3; intento++) {
         try {
-          const { data, error } = await _sb.from('usuarios').select('*').eq('id', user.id).single();
+          const { data, error } = await _sb.from('usuarios').select('*').eq('id', user.uid).single();
           if (error) { console.warn('Intento', intento+1, 'error:', error.message); await new Promise(r=>setTimeout(r,600)); continue; }
           rolData = data; break;
         } catch(e) { console.warn('Intento', intento+1, 'excepción:', e.message); await new Promise(r=>setTimeout(r,600)); }
@@ -3074,7 +3233,7 @@ _sb.auth.onAuthStateChange(async (event, session) => {
       } else {
         currentRole = 'vendedor';
         console.warn('No se pudo leer rol, creando usuario con rol vendedor');
-        try { await _sb.from('usuarios').insert({ id: user.id, email: user.email, rol: 'vendedor', nombre: user.email.split('@')[0], creado_ms: Date.now() }); } catch(e) {}
+        try { await _sb.from('usuarios').insert({ id: user.uid, email: user.email, rol: 'vendedor', nombre: user.email.split('@')[0], creado_ms: Date.now() }); } catch(e) {}
       }
     } catch(e) { console.error('Error cargando rol:', e); currentRole = 'vendedor'; }
 
@@ -3119,14 +3278,14 @@ _sb.auth.onAuthStateChange(async (event, session) => {
 
 function mostrarUID() {
   if (!currentUser) return;
-  alert('UID: ' + currentUser.id + '\nRol: ' + currentRole);
+  alert('UID: ' + currentUser.uid + '\nRol: ' + currentRole);
 }
 
 // FIX: función de emergencia para forzar recarga del rol admin
 async function recargarRol() {
   if (!currentUser) { alert('No hay sesión activa'); return; }
   try {
-    const { data, error } = await _sb.from('usuarios').select('*').eq('id', currentUser.id).single();
+    const { data, error } = await _sb.from('usuarios').select('*').eq('id', currentUser.uid).single();
     if (error) { alert('Error: ' + error.message); return; }
     if (!data) { alert('Usuario no encontrado en tabla usuarios'); return; }
     currentRole = (data.rol||'').trim().toLowerCase() === 'admin' ? 'admin' : 'vendedor';
@@ -3180,25 +3339,18 @@ async function doLogout() {
   } catch(e) {
     console.warn('signOut error:', e);
   }
-  // Limpiar sesion local manualmente por seguridad
-  try {
-    const keys = Object.keys(localStorage).filter(k => k.startsWith('sb-'));
-    keys.forEach(k => localStorage.removeItem(k));
-  } catch(e) {}
   window.location.href = window.location.href.split('?')[0];
 }
 
-/* TEST CONEXION SUPABASE */
+/* TEST CONEXION FIREBASE */
 async function testConexionSupabase() {
   try {
-    const { data, error } = await _sb.from('usuarios').select('count').limit(1);
-    if (error && (error.message?.includes('apikey') || error.message?.includes('JWT') || error.message?.includes('Invalid'))) {
-      console.error('ERROR DE CONFIGURACION SUPABASE:', error.message);
-      const loginNote = document.querySelector('.login-note');
-      if (loginNote) loginNote.innerHTML = '<span style="color:#D72B1F;font-weight:600">&#9888; Error de configuración del servidor. Contacta al administrador.<br><small>' + error.message + '</small></span>';
-    }
+    await _db.collection('usuarios').limit(1).get();
+    console.log('✅ Firebase conectado correctamente');
   } catch(e) {
-    console.warn('No se pudo verificar conexion Supabase:', e.message);
+    console.error('ERROR DE CONFIGURACION FIREBASE:', e.message);
+    const loginNote = document.querySelector('.login-note');
+    if (loginNote) loginNote.innerHTML = '<span style="color:#D72B1F;font-weight:600">&#9888; Error de configuración del servidor. Contacta al administrador.<br><small>' + e.message + '</small></span>';
   }
 }
 // Ejecutar test al cargar
@@ -3231,7 +3383,7 @@ async function guardarCot() {
 
   // ── Verificar que el consecutivo no exista ya ──
   try {
-    const { data: _dup } = await _sb.from('cotizaciones').select('id').eq('uid', currentUser.id).eq('consec', consecActual).limit(1);
+    const { data: _dup } = await _sb.from('cotizaciones').select('id').eq('uid', currentUser.uid).eq('consec', consecActual).limit(1);
     if (_dup && _dup.length > 0) {
       toast(`❌ El número ${consecActual} ya existe. Cambia el consecutivo.`, 'err');
       // Resaltar el campo visualmente
@@ -3251,7 +3403,7 @@ async function guardarCot() {
     const subtotalFinal = Math.round(lastCot.subtotal || 0);
     const ivaFinal      = Math.round(lastCot.iva || 0);
     const { error: _errC } = await _sb.from('cotizaciones').insert({
-      uid:       currentUser.id,
+      uid:       currentUser.uid,
       email:     currentUser.email,
       titulo:    lastCot.titulo,
       slug:      lastCot.slug,
@@ -3317,7 +3469,7 @@ async function cargarHist() {
   lista.innerHTML = '<div class="hist-empty">Cargando...</div>';
   try {
     // FIX: eliminada variable 'snap' que se declaraba pero nunca se usaba
-    const _qH = currentRole === 'admin' ? await _sb.from('cotizaciones').select('*').limit(200) : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.id).limit(100);
+    const _qH = currentRole === 'admin' ? await _sb.from('cotizaciones').select('*').limit(200) : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.uid).limit(100);
     if (_qH.error) throw _qH.error;
     histData = (_qH.data||[]).map(d => ({...d, fechaMs: d.creado_ms, fechaStr: d.fecha_str})).sort((a,b) => (b.creado_ms||0) - (a.creado_ms||0));
     renderHist(histData);
@@ -3741,11 +3893,20 @@ async function crearUsuario() {
   status.style.color='var(--text2)'; status.textContent='⏳ Creando usuario...';
 
   try {
-    const { data: _na, error: _ea } = await _sb.auth.signUp({ email, password: pass });
-    if (_ea) throw new Error(_ea.message);
-    const newUid = _na?.user?.id;
-    if (!newUid) throw new Error('No se pudo crear el usuario');
-    await _sb.from('usuarios').insert({ id: newUid, email, nombre, rol, creado_ms: Date.now(), creado_por: currentUser.id });
+    // Firebase: usar app secundaria para no cerrar sesión del admin
+    const appSecundaria = firebase.app('secundaria-temp-'+Date.now()) || null;
+    let secondaryApp;
+    try {
+      secondaryApp = firebase.initializeApp(firebaseConfig, 'secundaria-'+Date.now());
+    } catch(e) {
+      secondaryApp = firebase.apps.find(a => a.name !== '[DEFAULT]') || firebase.initializeApp(firebaseConfig, 'sec');
+    }
+    const authSec = secondaryApp.auth();
+    const cred = await authSec.createUserWithEmailAndPassword(email, pass);
+    const newUid = cred.user.uid;
+    await authSec.signOut();
+
+    await _sb.from('usuarios').insert({ id: newUid, email, nombre, rol, creado_ms: Date.now(), creado_por: currentUser.uid });
     status.style.color='#2D6A1F';
     status.textContent=`✅ Usuario "${nombre}" creado como ${rol}. Comparte sus credenciales de forma segura.`;
     ['nu-nombre','nu-email','nu-pass'].forEach(id=>document.getElementById(id).value='');
@@ -3841,7 +4002,7 @@ async function cargarDash() {
     }
 
     // Load cotizaciones — NO orderBy (avoids index requirement)
-    const _qD = currentRole === 'admin' ? await _sb.from('cotizaciones').select('*') : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.id);
+    const _qD = currentRole === 'admin' ? await _sb.from('cotizaciones').select('*') : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.uid);
     dashData = (_qD.data||[]).map(d => ({...d, fechaMs: d.creado_ms, fechaStr: d.fecha_str})).sort((a,b) => (b.creado_ms||0)-(a.creado_ms||0));
 
     dashFiltroUid = '';
@@ -4325,7 +4486,7 @@ async function crmCargar() {
   try {
     // FIX: eliminada variable 'snap' que se declaraba pero nunca se usaba
     // Sin orderBy para evitar error de índice — ordenamos en JS
-    const _qC = currentRole === 'admin' ? await _sb.from('cotizaciones').select('*').limit(500) : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.id).limit(500);
+    const _qC = currentRole === 'admin' ? await _sb.from('cotizaciones').select('*').limit(500) : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.uid).limit(500);
     if (_qC.error) throw _qC.error;
 
     const todasCots = [];
