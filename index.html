@@ -1816,36 +1816,49 @@ function recalc(rid){
 /* FIX: función auxiliar compartida para construir el encabezado del PDF
    Evita duplicar la misma lógica en descargarPDF(), descargarCotHist() y cotEditGenerarPDF() */
 function _pdfEncabezado(doc, W, mg, titulo, consec, empresa, ciudad, resp, tel, dir, vendedor, cliente, fecha, vigencia) {
-  doc.setFillColor(215,43,31); doc.rect(0,0,W,30,'F');
+  // ── Encabezado con gradiente visual mejorado ──
+  doc.setFillColor(215,43,31); doc.rect(0,0,W,32,'F');
+  doc.setFillColor(180,25,15); doc.rect(0,26,W,6,'F');
+
   doc.setTextColor(255,255,255);
-  doc.setFontSize(17); doc.setFont('helvetica','bold');
-  doc.text('COTIZACIÓN DE TELECOMUNICACIONES', mg, 13);
-  doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text(titulo||'TeleQuoter', mg, 20);
-  doc.text('Normas ANSI/TIA-568-C  ·  Precios COP  ·  IVA 19% incluido', mg, 26);
+  doc.setFontSize(15); doc.setFont('helvetica','bold');
+  doc.text('COTIZACIÓN DE TELECOMUNICACIONES', mg, 12);
+  doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+  doc.text((titulo||'TeleQuoter').toUpperCase(), mg, 19);
+  doc.setFontSize(7.5);
+  doc.text('Normas ANSI/TIA-568-C  ·  Precios COP  ·  IVA 19% incluido', mg, 28.5);
 
-  doc.setTextColor(30,30,30);
-  doc.setFontSize(9); doc.setFont('helvetica','bold');
-  doc.text(empresa||'—', mg, 40);
-  doc.setFont('helvetica','normal');
-  doc.text('NIT: '+(doc._nit||'')+'  |  '+(ciudad||'—'), mg, 45);
-  doc.text('Responsable: '+(resp||'—')+'  |  Tel: '+(tel||'—'), mg, 50);
-  if (dir) doc.text('Dirección: '+dir, mg, 55);
-  if (vendedor) doc.text('Vendedor: '+vendedor, mg, 60);
+  // ── Línea separadora debajo del encabezado ──
+  doc.setDrawColor(215,43,31); doc.setLineWidth(0.8); doc.line(mg,35,W-mg,35);
 
-  doc.setFont('helvetica','bold');
-  doc.setTextColor(215,43,31);
-  doc.text(consec||'—', W/2+2, 38);
-  doc.setTextColor(30,30,30);
-  doc.setFont('helvetica','normal');
-  doc.text('Cliente: '+(cliente||'—'), W/2+2, 44);
-  doc.text('Fecha: '+(fecha||'—'), W/2+2, 49);
-  doc.text('Vigencia: '+(vigencia||'30')+' días', W/2+2, 54);
-  doc.text('Ciudad: '+(ciudad||'—'), W/2+2, 59);
+  // ── Bloque izquierdo: datos empresa ──
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(20,20,20);
+  doc.text(empresa||'—', mg, 42);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(60,60,60);
+  doc.text('NIT: '+(doc._nit||'—')+'   |   '+( ciudad||'—'), mg, 47.5);
+  doc.text('Responsable: '+(resp||'—')+'   Tel: '+(tel||'—'), mg, 52.5);
+  if (dir) doc.text('Dir: '+dir, mg, 57);
+  if (vendedor) { doc.setTextColor(100,100,100); doc.text('Vendedor: '+vendedor, mg, (dir?62:57)); doc.setTextColor(60,60,60); }
+
+  // ── Bloque derecho: datos cotización con caja de fondo ──
+  const rx = W/2+4, rw = W/2-mg-4;
+  doc.setFillColor(250,248,248); doc.roundedRect(rx-2, 33, rw+4, 32, 2, 2, 'F');
+  doc.setDrawColor(215,43,31); doc.setLineWidth(0.3); doc.roundedRect(rx-2, 33, rw+4, 32, 2, 2, 'S');
+
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor(215,43,31);
+  doc.text(consec||'—', rx+2, 41);
+  doc.setFontSize(7.8); doc.setFont('helvetica','normal'); doc.setTextColor(50,50,50);
+  doc.text('Cliente: ', rx+2, 48); doc.setFont('helvetica','bold'); doc.text(cliente||'—', rx+18, 48); doc.setFont('helvetica','normal');
+  doc.text('Fecha:    '+( fecha||'—'), rx+2, 53);
+  doc.text('Vigencia: '+(vigencia||'30')+' días', rx+2, 58);
+  doc.text('Ciudad:   '+(ciudad||'—'), rx+2, 63);
 }
 
 function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
-  const head = [['Ref.','Descripción','Cant.','Und.','P. Venta Unit.','Total COP','Fecha entrega']];
+  // Columnas más anchas para mejor lectura
+  // Total disponible: 210 - 14*2 = 182mm
+  // Ref:22 | Desc:78 | Cant:10 | Und:10 | PVenta:24 | Total:24 | Fecha:14 = 182
+  const head = [['Ref.','Descripción','Cant.','Und.','P. Venta Unit.','Total COP','Entrega']];
   const body = items.map(it => {
     const pv = (it.precio||0)*(1+(it.mg||0)/100);
     const fd = it.fecha ? new Date(it.fecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : 'Por confirmar';
@@ -1853,24 +1866,58 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
       '$'+Math.round(pv).toLocaleString('es-CO'),
       '$'+Math.round(pv*(it.qty||1)).toLocaleString('es-CO'), fd];
   });
+
   doc.autoTable({
-    startY, head, body,
-    margin:{left:mg,right:mg},
-    styles:{fontSize:7.5,cellPadding:2.5,textColor:[30,30,30]},
-    headStyles:{fillColor:[215,43,31],textColor:[255,255,255],fontStyle:'bold',fontSize:7.5},
-    columnStyles:{
-      0:{cellWidth:24,fontStyle:'bold',textColor:[180,30,20]},
-      1:{cellWidth:67},2:{cellWidth:10,halign:'right'},
-      3:{cellWidth:10,halign:'center'},4:{cellWidth:27,halign:'right'},
-      5:{cellWidth:27,halign:'right'},6:{cellWidth:21,halign:'center'}
+    startY,
+    head,
+    body,
+    margin: { left: mg, right: mg },
+    // FIX: totales solo en la última página
+    showFoot: 'lastPage',
+    styles: {
+      fontSize: 7.8,
+      cellPadding: 3,
+      textColor: [30,30,30],
+      lineColor: [220,220,215],
+      lineWidth: 0.1
     },
-    alternateRowStyles:{fillColor:[250,250,248]},
-    foot:[
+    headStyles: {
+      fillColor: [215,43,31],
+      textColor: [255,255,255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      cellPadding: 3.5
+    },
+    columnStyles: {
+      // FIX: columnas más anchas y mejor balanceadas
+      0: { cellWidth: 22, fontStyle:'bold', textColor:[180,30,20] },
+      1: { cellWidth: 78, overflow:'linebreak' },
+      2: { cellWidth: 10, halign:'center' },
+      3: { cellWidth: 10, halign:'center' },
+      4: { cellWidth: 24, halign:'right' },
+      5: { cellWidth: 24, halign:'right', fontStyle:'bold' },
+      6: { cellWidth: 14, halign:'center', fontSize:7, textColor:[100,100,100] }
+    },
+    alternateRowStyles: { fillColor: [252,251,250] },
+    foot: [
       ['','','','','','Subtotal sin IVA:','$'+Math.round(subtotal||0).toLocaleString('es-CO')],
       ['','','','','','IVA (19%):','$'+Math.round(iva||0).toLocaleString('es-CO')],
       ['','','','','','TOTAL CON IVA:','$'+Math.round(total||0).toLocaleString('es-CO')],
     ],
-    footStyles:{fillColor:[245,240,240],fontStyle:'bold',fontSize:9},
+    footStyles: {
+      fillColor: [240,235,235],
+      fontStyle: 'bold',
+      fontSize: 9,
+      textColor: [20,20,20]
+    },
+    // FIX: resaltar fila de total en rojo
+    didParseCell: (data) => {
+      if (data.section === 'foot' && data.row.index === 2) {
+        data.cell.styles.fillColor = [215,43,31];
+        data.cell.styles.textColor = [255,255,255];
+        data.cell.styles.fontSize  = 10;
+      }
+    }
   });
 }
 
@@ -1893,16 +1940,55 @@ function _pdfObsRec(doc, obs, rec, mg, W, fy) {
   return fy + bH + 6;
 }
 
-function _pdfPie(doc, mg, W, nom, fecha, vigencia) {
-  let fy = doc.lastAutoTable.finalY + 8;
-  doc.setFontSize(7.5); doc.setTextColor(130,130,130);
-  doc.text('TeleQuoter · Cotizador de Telecomunicaciones · Precios COP · IVA 19% · Vigencia '+(vigencia||'30')+' días', mg, fy);
-  doc.text('Materiales marca Panduit · Referencias oficiales ANSI/TIA-568-C', mg, fy+4);
-  doc.setFillColor(215,43,31); doc.rect(0,287,W,10,'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(7.5);
-  doc.text('TeleQuoter — Cotizador de Telecomunicaciones', mg, 293);
-  doc.text((nom||'')+'  |  '+(fecha||''), W-mg, 293, {align:'right'});
-  return fy;
+function _pdfFirma(doc, mg, W, fy, resp, vendedor) {
+  // Si no hay espacio suficiente en la página, nueva página
+  if (fy > 240) { doc.addPage(); fy = 20; }
+
+  const bY = fy + 4;
+  const col1 = mg;
+  const col2 = W/2 + 4;
+  const lineW = (W - mg*2) / 2 - 10;
+
+  doc.setFontSize(8); doc.setTextColor(80,80,80);
+
+  // Firma cliente
+  doc.setDrawColor(100,100,100); doc.setLineWidth(0.3);
+  doc.line(col1, bY+20, col1+lineW, bY+20);
+  doc.setFont('helvetica','bold'); doc.setTextColor(40,40,40);
+  doc.text('Firma y sello cliente', col1, bY+25);
+  doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+  doc.text(resp||'Representante cliente', col1, bY+30);
+  doc.text('C.C. / NIT: ___________________', col1, bY+35);
+
+  // Firma vendedor
+  doc.setDrawColor(100,100,100);
+  doc.line(col2, bY+20, col2+lineW, bY+20);
+  doc.setFont('helvetica','bold'); doc.setTextColor(40,40,40);
+  doc.text('Firma vendedor / asesor', col2, bY+25);
+  doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+  doc.text(vendedor||'Asesor comercial', col2, bY+30);
+  doc.text('TeleQuoter · Telecomunicaciones', col2, bY+35);
+
+  // Nota legal
+  doc.setFontSize(6.5); doc.setTextColor(150,150,150);
+  doc.text('Esta cotización tiene validez por el período de vigencia indicado. Los precios están sujetos a disponibilidad de inventario.', mg, bY+42);
+  doc.text('Al firmar, el cliente acepta los términos y condiciones de la propuesta comercial.', mg, bY+47);
+
+  return bY + 52;
+}
+
+function _pdfPiePagina(doc, mg, W, empresa, fecha, vigencia) {
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(215,43,31); doc.rect(0,287,W,10,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    doc.text('TeleQuoter — Cotizador de Telecomunicaciones', mg, 293);
+    doc.text((empresa||'')+'  |  Vigencia: '+(vigencia||'30')+' días  |  '+(fecha||''), W-mg, 293, {align:'right'});
+    // Número de página
+    doc.setFontSize(7); doc.setTextColor(200,180,180);
+    doc.text('Pág. '+i+' / '+pageCount, W/2, 293, {align:'center'});
+  }
 }
 /* FIX: descargarPDF() refactorizado usando funciones auxiliares compartidas
    (_pdfEncabezado, _pdfTablaItems, _pdfObsRec, _pdfPie) */
@@ -1936,16 +2022,14 @@ function descargarPDF() {
   _pdfTablaItems(doc, lastCot.items, startY, mg, W,
     lastCot.subtotal, lastCot.iva, lastCot.total||lastCot.tot||0);
 
-  let fy = doc.lastAutoTable.finalY + 8;
+  let fy = doc.lastAutoTable.finalY + 10;
   fy = _pdfObsRec(doc, lastCot.obs, lastCot.rec, mg, W, fy);
 
-  doc.setFontSize(7.5); doc.setTextColor(130,130,130);
-  doc.text('TeleQuoter · Cotizador de Telecomunicaciones · Precios COP · IVA 19% · Vigencia '+(lastCot.emp.vigencia||'30')+' días', mg, fy);
-  doc.text('Materiales marca Panduit · Referencias oficiales ANSI/TIA-568-C', mg, fy+4);
-  doc.setFillColor(215,43,31); doc.rect(0,287,W,10,'F');
-  doc.setTextColor(255,255,255); doc.setFontSize(7.5);
-  doc.text('TeleQuoter — Cotizador de Telecomunicaciones', mg, 293);
-  doc.text(lastCot.emp.nom+'  |  '+lastCot.emp.fecha, W-mg, 293, {align:'right'});
+  // ── Bloque de firma ──
+  fy = _pdfFirma(doc, mg, W, fy, lastCot.emp.resp, lastCot.emp.vendedor);
+
+  // ── Pie de página ──
+  _pdfPiePagina(doc, mg, W, lastCot.emp.nom, lastCot.emp.fecha, lastCot.emp.vigencia);
 
   doc.save('cotizacion_'+lastCot.slug.replace(/\s/g,'_')+'_'+lastCot.emp.cliente.replace(/\s/g,'_')+'.pdf');
 }
@@ -3572,15 +3656,10 @@ async function descargarCotHist(id) {
 
     _pdfTablaItems(doc, c.items||[], 63, mg, W, c.subtotal||0, c.iva||0, c.total||0);
 
-    let fy = doc.lastAutoTable.finalY + 8;
+    let fy = doc.lastAutoTable.finalY + 10;
     fy = _pdfObsRec(doc, c.obs, c.rec, mg, W, fy);
-
-    doc.setFontSize(7.5); doc.setTextColor(130,130,130);
-    doc.text('TeleQuoter · Cotizador de Telecomunicaciones · Precios COP · IVA 19% · Vigencia '+(c.vigencia||'30')+' días', mg, fy);
-    doc.setFillColor(215,43,31); doc.rect(0,287,W,10,'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(7.5);
-    doc.text('TeleQuoter — Cotizador de Telecomunicaciones', mg, 293);
-    doc.text((c.empresa||'—')+'  |  '+(c.fechaStr||'—'), W-mg, 293, {align:'right'});
+    fy = _pdfFirma(doc, mg, W, fy, c.resp, c.vendedor);
+    _pdfPiePagina(doc, mg, W, c.empresa||'—', c.fechaStr||'—', c.vigencia||'30');
 
     const nombre = ((c.consec||'cot')+'_'+(c.cliente||'cliente')).replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_\-]/g,'');
     doc.save(nombre+'.pdf');
