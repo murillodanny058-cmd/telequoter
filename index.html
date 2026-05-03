@@ -1872,37 +1872,40 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
     head,
     body,
     margin: { left: mg, right: mg },
-    // FIX: totales solo en la última página
     showFoot: 'lastPage',
+    tableWidth: W - mg*2,
     styles: {
       fontSize: 7.8,
       cellPadding: 3,
       textColor: [30,30,30],
       lineColor: [220,220,215],
-      lineWidth: 0.1
+      lineWidth: 0.1,
+      overflow: 'linebreak'
     },
     headStyles: {
       fillColor: [215,43,31],
       textColor: [255,255,255],
       fontStyle: 'bold',
       fontSize: 8,
-      cellPadding: 3.5
+      cellPadding: 3.5,
+      valign: 'middle',
+      halign: 'center'
     },
     columnStyles: {
-      // FIX: columnas más anchas y mejor balanceadas
-      0: { cellWidth: 22, fontStyle:'bold', textColor:[180,30,20] },
-      1: { cellWidth: 78, overflow:'linebreak' },
-      2: { cellWidth: 10, halign:'center' },
-      3: { cellWidth: 10, halign:'center' },
-      4: { cellWidth: 24, halign:'right' },
-      5: { cellWidth: 24, halign:'right', fontStyle:'bold' },
-      6: { cellWidth: 14, halign:'center', fontSize:7, textColor:[100,100,100] }
+      // Total: 182mm → Ref:22 + Desc:74 + Cant:13 + Und:13 + PVenta:26 + Total:26 + Entrega:8 = 182
+      0: { cellWidth: 22, fontStyle:'bold', textColor:[180,30,20], valign:'middle' },
+      1: { cellWidth: 74, overflow:'linebreak', valign:'middle' },
+      2: { cellWidth: 13, halign:'center', valign:'middle' },
+      3: { cellWidth: 13, halign:'center', valign:'middle' },
+      4: { cellWidth: 26, halign:'right', valign:'middle' },
+      5: { cellWidth: 26, halign:'right', fontStyle:'bold', valign:'middle' },
+      6: { cellWidth: 8,  halign:'center', fontSize:7, textColor:[100,100,100], valign:'middle' }
     },
     alternateRowStyles: { fillColor: [252,251,250] },
     foot: [
-      ['','','','','','Subtotal sin IVA:','$'+Math.round(subtotal||0).toLocaleString('es-CO')],
-      ['','','','','','IVA (19%):','$'+Math.round(iva||0).toLocaleString('es-CO')],
-      ['','','','','','TOTAL CON IVA:','$'+Math.round(total||0).toLocaleString('es-CO')],
+      [{content:'', colSpan:4}, {content:'Subtotal sin IVA:', styles:{halign:'right', fontStyle:'bold'}}, {content:'$'+Math.round(subtotal||0).toLocaleString('es-CO'), styles:{halign:'right'}}, ''],
+      [{content:'', colSpan:4}, {content:'IVA (19%):', styles:{halign:'right', fontStyle:'bold'}}, {content:'$'+Math.round(iva||0).toLocaleString('es-CO'), styles:{halign:'right'}}, ''],
+      [{content:'', colSpan:4}, {content:'TOTAL CON IVA:', styles:{halign:'right', fontStyle:'bold', fillColor:[215,43,31], textColor:[255,255,255], fontSize:10}}, {content:'$'+Math.round(total||0).toLocaleString('es-CO'), styles:{halign:'right', fillColor:[215,43,31], textColor:[255,255,255], fontSize:10, fontStyle:'bold'}}, {content:'', styles:{fillColor:[215,43,31]}}],
     ],
     footStyles: {
       fillColor: [240,235,235],
@@ -1910,12 +1913,10 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
       fontSize: 9,
       textColor: [20,20,20]
     },
-    // FIX: resaltar fila de total en rojo
     didParseCell: (data) => {
-      if (data.section === 'foot' && data.row.index === 2) {
-        data.cell.styles.fillColor = [215,43,31];
-        data.cell.styles.textColor = [255,255,255];
-        data.cell.styles.fontSize  = 10;
+      // Alinear encabezados individualmente
+      if (data.section === 'head') {
+        if (data.column.index >= 2) data.cell.styles.halign = 'center';
       }
     }
   });
