@@ -1828,9 +1828,6 @@ function _pdfEncabezado(doc, W, mg, titulo, consec, empresa, ciudad, resp, tel, 
   doc.setFontSize(7.5);
   doc.text('Normas ANSI/TIA-568-C  ·  Precios COP  ·  IVA 19% incluido', mg, 28.5);
 
-  // ── Línea separadora debajo del encabezado ──
-  doc.setDrawColor(215,43,31); doc.setLineWidth(0.8); doc.line(mg,35,W-mg,35);
-
   // ── Bloque izquierdo: datos empresa ──
   doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(20,20,20);
   doc.text(empresa||'—', mg, 42);
@@ -1894,12 +1891,12 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
     columnStyles: {
       // Total: 182mm → Ref:22 + Desc:74 + Cant:13 + Und:13 + PVenta:26 + Total:26 + Entrega:8 = 182
       0: { cellWidth: 22, fontStyle:'bold', textColor:[180,30,20], valign:'middle' },
-      1: { cellWidth: 74, overflow:'linebreak', valign:'middle' },
+      1: { cellWidth: 68, overflow:'linebreak', valign:'middle' },
       2: { cellWidth: 13, halign:'center', valign:'middle' },
       3: { cellWidth: 13, halign:'center', valign:'middle' },
       4: { cellWidth: 26, halign:'right', valign:'middle' },
       5: { cellWidth: 26, halign:'right', fontStyle:'bold', valign:'middle' },
-      6: { cellWidth: 8,  halign:'center', fontSize:7, textColor:[100,100,100], valign:'middle' }
+      6: { cellWidth: 14, halign:'center', fontSize:7.5, textColor:[100,100,100], valign:'middle' }
     },
     alternateRowStyles: { fillColor: [252,251,250] },
     foot: [
