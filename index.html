@@ -1855,7 +1855,7 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
   // Columnas más anchas para mejor lectura
   // Total disponible: 210 - 14*2 = 182mm
   // Ref:22 | Desc:78 | Cant:10 | Und:10 | PVenta:24 | Total:24 | Fecha:14 = 182
-  const head = [['Ref.','Descripción','Cant.','Und.','P. Venta Unit.','Total COP','Entrega']];
+  const head = [['Referencia','Descripción','Cant.','Und.','P. Venta Unit.','Total COP','Fecha Entrega']];
   const body = items.map(it => {
     const pv = (it.precio||0)*(1+(it.mg||0)/100);
     const fd = it.fecha ? new Date(it.fecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : 'Por confirmar';
@@ -1873,30 +1873,32 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
     tableWidth: W - mg*2,
     styles: {
       fontSize: 7.8,
-      cellPadding: 3,
+      cellPadding: { top: 2.5, right: 2.5, bottom: 2.5, left: 2.5 },
       textColor: [30,30,30],
       lineColor: [220,220,215],
       lineWidth: 0.1,
-      overflow: 'linebreak'
+      overflow: 'linebreak',
+      minCellHeight: 8
     },
     headStyles: {
       fillColor: [215,43,31],
       textColor: [255,255,255],
       fontStyle: 'bold',
-      fontSize: 8,
-      cellPadding: 3.5,
+      fontSize: 7.8,
+      cellPadding: { top: 3, right: 2.5, bottom: 3, left: 2.5 },
       valign: 'middle',
-      halign: 'center'
+      halign: 'center',
+      minCellHeight: 9
     },
     columnStyles: {
-      // Total: 182mm → Ref:22 + Desc:74 + Cant:13 + Und:13 + PVenta:26 + Total:26 + Entrega:8 = 182
-      0: { cellWidth: 22, fontStyle:'bold', textColor:[180,30,20], valign:'middle' },
-      1: { cellWidth: 68, overflow:'linebreak', valign:'middle' },
-      2: { cellWidth: 13, halign:'center', valign:'middle' },
-      3: { cellWidth: 13, halign:'center', valign:'middle' },
+      // Ref:28 + Desc:68 + Cant:14 + Und:14 + PVenta:26 + Total:26 + Fecha:6 = 182
+      0: { cellWidth: 28, fontStyle:'bold', textColor:[180,30,20], valign:'middle', halign:'left' },
+      1: { cellWidth: 68, overflow:'linebreak', valign:'middle', halign:'left' },
+      2: { cellWidth: 14, halign:'center', valign:'middle' },
+      3: { cellWidth: 14, halign:'center', valign:'middle' },
       4: { cellWidth: 26, halign:'right', valign:'middle' },
       5: { cellWidth: 26, halign:'right', fontStyle:'bold', valign:'middle' },
-      6: { cellWidth: 14, halign:'center', fontSize:7.5, textColor:[100,100,100], valign:'middle' }
+      6: { cellWidth: 6,  halign:'center', fontSize:7.5, textColor:[100,100,100], valign:'middle' }
     },
     alternateRowStyles: { fillColor: [252,251,250] },
     foot: [
@@ -2002,19 +2004,15 @@ function descargarPDF() {
     lastCot.emp.dir, lastCot.emp.vendedor, lastCot.emp.cliente,
     lastCot.emp.fecha, lastCot.emp.vigencia);
 
-  let startY = 68;
+  let startY = 70;
   const res = resumen(lastCot.tipoRender, lastCot.datosRender);
   if (res) {
-    doc.setDrawColor(215,43,31); doc.setLineWidth(0.5); doc.line(mg,58,W-mg,58);
     doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(215,43,31);
-    doc.text('RESUMEN EJECUTIVO', mg, 63);
+    doc.text('RESUMEN EJECUTIVO', mg, 68);
     doc.setFont('helvetica','normal'); doc.setTextColor(60,60,60);
     const rL = doc.splitTextToSize(res.replace(/\n+/g,' '), W-mg*2);
-    doc.text(rL, mg, 68);
-    startY = 68 + rL.length*3.6 + 5;
-    doc.setDrawColor(200,200,200); doc.setLineWidth(0.3); doc.line(mg,startY-2,W-mg,startY-2);
-  } else {
-    doc.setDrawColor(215,43,31); doc.setLineWidth(0.5); doc.line(mg,58,W-mg,58);
+    doc.text(rL, mg, 73);
+    startY = 73 + rL.length*3.6 + 4;
   }
 
   _pdfTablaItems(doc, lastCot.items, startY, mg, W,
