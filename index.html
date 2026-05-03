@@ -1534,18 +1534,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function sincronizarConsecutivo() {
   try {
-    const { data: _sc } = await _sb.from('cotizaciones').select('consec').eq('uid', currentUser.uid).limit(200);
+    const { data: _sc } = await _sb.from('cotizaciones').select('consec').eq('uid', currentUser.uid).limit(500);
     if (_sc && _sc.length > 0) {
-      // Find highest COT-XXX number
+      // FIX: extraer solo la parte numérica respetando el prefijo (ej: "COT-005" → 5)
       let maxNum = 0;
+      let prefix = 'COT-';
+      let padLen = 3;
       _sc.forEach(d => {
         const consec = d.consec || '';
-        const num = parseInt(consec.replace('COT-','')) || 0;
-        if (num > maxNum) maxNum = num;
+        const match = consec.match(/^(.*?)(\d+)$/);
+        if (match) {
+          const num = parseInt(match[2], 10);
+          if (num > maxNum) {
+            maxNum = num;
+            prefix = match[1];
+            padLen = match[2].length;
+          }
+        }
       });
-      const nextNum = String(maxNum + 1).padStart(3,'0');
+      const nextNum = String(maxNum + 1).padStart(padLen, '0');
       const el = document.getElementById('e_consec');
-      if (el) el.value = nextNum;
+      // Solo actualizar si el campo actual es menor al siguiente
+      if (el) {
+        const currentMatch = el.value.match(/^(.*?)(\d+)$/);
+        const currentNum = currentMatch ? parseInt(currentMatch[2], 10) : 0;
+        if (currentNum <= maxNum) el.value = prefix + nextNum;
+      }
     }
   } catch(e) { console.warn('No se pudo sincronizar consecutivo:', e.message); }
 }
@@ -3441,8 +3455,12 @@ async function guardarCot() {
     } else {
       el.value = String(+consecVal + 1).padStart(3,'0');
     }
-    toast('\u2713 Cotizaci\u00f3n '+consecActual+' guardada','ok');
+    toast('✓ Cotización '+consecActual+' guardada','ok');
     crmLoaded = false; // forzar recarga en CRM home
+    // FIX: limpiar caché del buscador para que la nueva cotización aparezca
+    window._todasCots = null;
+    // FIX: resincronizar consecutivo después de guardar
+    setTimeout(sincronizarConsecutivo, 500);
   } catch(e) {
     const errMsg = e.message || JSON.stringify(e);
     toast('Error al guardar: '+errMsg,'err');
@@ -3616,14 +3634,16 @@ function cerrarAdmin() {
 
 async function cargarRefs() {
   try {
-    const { data: _refs } = await _sb.from('referencias').select('*').order('categoria');
-    todasRefs = (_refs||[]).map(r => ({...r, desc: r.descripcion}));
+    const { data: _refs } = await _sb.from('referencias').select('*');
+    // FIX: ordenar en JS para evitar necesitar índice compuesto en Firestore
+    todasRefs = (_refs||[]).map(r => ({...r, desc: r.descripcion||r.desc||''}))
+      .sort((a,b) => (a.categoria||'').localeCompare(b.categoria||'') || (a.ref||'').localeCompare(b.ref||''));
     filtrarRefs();
     document.getElementById('ref-count').textContent = `${todasRefs.length} referencias totales`;
   } catch(e) {
-    // Si no hay datos aún, cargar defaults
     todasRefs = [];
     filtrarRefs();
+    console.error('Error cargando refs:', e);
   }
 }
 
@@ -3842,8 +3862,9 @@ async function cargarUsuarios() {
   const lista = document.getElementById('usr-list');
   lista.innerHTML = '<div class="usr-empty">Cargando...</div>';
   try {
-    const { data: _us } = await _sb.from('usuarios').select('*').order('nombre');
-    const usuarios = (_us||[]);
+    const { data: _us } = await _sb.from('usuarios').select('*');
+    // FIX: ordenar en JS para evitar índice en Firestore
+    const usuarios = (_us||[]).sort((a,b) => (a.nombre||'').localeCompare(b.nombre||''));
     renderUsuarios(usuarios);
   } catch(e) {
     lista.innerHTML = `<div class="usr-empty">Error cargando usuarios: ${e.message}</div>`;
@@ -4789,10 +4810,22 @@ function calPrev() { calFecha.setMonth(calFecha.getMonth()-1); crmRenderCalendar
 function calNext() { calFecha.setMonth(calFecha.getMonth()+1); crmRenderCalendario(); }
 
 /* ---- BUSCADOR GLOBAL ---- */
-function crmBuscarGlobal() {
+async function crmBuscarGlobal() {
   const q = (document.getElementById('crm-q').value || '').toLowerCase().trim();
   const res = document.getElementById('crm-search-results');
   if (!q) { res.style.display = 'none'; crmRenderGrid(crmData); return; }
+
+  // FIX: si el caché está vacío, cargar cotizaciones desde Firestore directamente
+  if (!window._todasCots || window._todasCots.length === 0) {
+    res.style.display = 'block';
+    res.innerHTML = '<div class="srch-item" style="color:var(--text3);cursor:default">🔍 Buscando...</div>';
+    try {
+      const _q = currentRole === 'admin'
+        ? await _sb.from('cotizaciones').select('*').limit(500)
+        : await _sb.from('cotizaciones').select('*').eq('uid', currentUser.uid).limit(500);
+      window._todasCots = (_q.data||[]).map(d => ({...d, fechaMs: d.creado_ms, fechaStr: d.fecha_str}));
+    } catch(e) { console.warn('Error cargando cots para búsqueda:', e); }
+  }
 
   const hits = [];
   const cots = window._todasCots || [];
