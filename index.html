@@ -1536,26 +1536,29 @@ async function sincronizarConsecutivo() {
   try {
     const { data: _sc } = await _sb.from('cotizaciones').select('consec').eq('uid', currentUser.uid).limit(500);
     if (_sc && _sc.length > 0) {
-      // Extraer el numero maximo de todos los consecutivos (ej: "COT-005" -> 5)
+      // FIX: extraer solo la parte numérica respetando el prefijo (ej: "COT-005" → 5)
       let maxNum = 0;
+      let prefix = 'COT-';
       let padLen = 3;
       _sc.forEach(d => {
         const consec = d.consec || '';
-        const match = consec.match(/(\d+)$/);
+        const match = consec.match(/^(.*?)(\d+)$/);
         if (match) {
-          const num = parseInt(match[1], 10);
+          const num = parseInt(match[2], 10);
           if (num > maxNum) {
             maxNum = num;
-            padLen = Math.max(padLen, match[1].length);
+            prefix = match[1];
+            padLen = match[2].length;
           }
         }
       });
       const nextNum = String(maxNum + 1).padStart(padLen, '0');
       const el = document.getElementById('e_consec');
-      // Poner solo el numero en el campo (emp() agrega el prefijo "COT-")
+      // Solo actualizar si el campo actual es menor al siguiente
       if (el) {
-        const currentNum = parseInt(el.value, 10) || 0;
-        if (currentNum <= maxNum) el.value = nextNum;
+        const currentMatch = el.value.match(/^(.*?)(\d+)$/);
+        const currentNum = currentMatch ? parseInt(currentMatch[2], 10) : 0;
+        if (currentNum <= maxNum) el.value = prefix + nextNum;
       }
     }
   } catch(e) { console.warn('No se pudo sincronizar consecutivo:', e.message); }
@@ -3613,6 +3616,12 @@ function renderHist(data) {
         <span class="hbadge">${(c.items||[]).length} ítems</span>
         <span class="hbadge">IVA $${(c.iva||0).toLocaleString('es-CO')}</span>
         ${c.tel&&c.tel!=='—'?`<span class="hbadge">📞 ${c.tel}</span>`:''}
+        ${c.estado ? `<span class="hbadge" style="${{enviada:'background:#EFF6FF;color:#1D4ED8',en_negociacion:'background:#FFFBEB;color:#92400E',ganada:'background:#ECFDF5;color:#065F46',perdida:'background:#FEF2F2;color:#991B1B',aplazada:'background:#F5F3FF;color:#5B21B6',sin_respuesta:'background:#F3F4F6;color:#374151'}[c.estado]||'background:#f0f0ee;color:#555'}">${{enviada:'📤 Enviada',en_negociacion:'🤝 En negociación',ganada:'🏆 Ganada',perdida:'❌ Perdida',aplazada:'⏸️ Aplazada',sin_respuesta:'🔇 Sin respuesta'}[c.estado]||c.estado}</span>` : ''}
+        ${(c.seguimientos||[]).length>0?`<span class="hbadge" style="background:#FFF5F5;color:var(--red)">💬 ${(c.seguimientos||[]).length} seguimiento${(c.seguimientos||[]).length!==1?'s':''}</span>`:''}
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button onclick="abrirCotEdit('${c.id}')" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;font-weight:600;color:var(--text2);transition:all .15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">✏️ Editar</button>
+        <button onclick="abrirCotEdit('${c.id}','seguimiento')" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:7px;background:#fff;cursor:pointer;font-weight:600;color:var(--text2);transition:all .15s" onmouseover="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">📊 Seguimiento</button>
       </div>
     </div>`;
   }).join('');
@@ -3926,7 +3935,7 @@ let refsDB = {};
 async function cargarRefsParaCotizar() {
   try {
     const { data: _ar } = await _sb.from('referencias').select('*');
-    (_ar||[]).forEach(r => { refsDB[r.ref] = {...r, desc: r.desc || r.descripcion || ''}; });
+    (_ar||[]).forEach(r => { refsDB[r.ref] = {...r, desc: r.descripcion}; });
   } catch(e) {}
 }
 
@@ -5030,7 +5039,7 @@ function crmRenderGrid(lista) {
 /* ---- EDICION COTIZACION ---- */
 let cotEditDoc = null;
 
-async function abrirCotEdit(id) {
+async function abrirCotEdit(id, tab) {
   const modal = document.getElementById('modal-cot-edit');
   const body = document.getElementById('cot-edit-body');
   modal.classList.add('open');
@@ -5038,44 +5047,118 @@ async function abrirCotEdit(id) {
   try {
     const { data: _ce2 } = await _sb.from('cotizaciones').select('*').eq('id', id).single();
     if (!_ce2) { body.innerHTML = '<div style="padding:2rem;color:var(--red)">No encontrada.</div>'; return; }
-    cotEditDoc = { ..._ce2, fechaStr: _ce2.fecha_str };
+    cotEditDoc = { ..._ce2, fechaStr: _ce2.fecha_str, estado: _ce2.estado||'', seguimientos: _ce2.seguimientos||[] };
     document.getElementById('cot-edit-title').textContent = 'Editar · ' + (cotEditDoc.consec||id);
-    renderCotEditBody(cotEditDoc);
+    renderCotEditBody(cotEditDoc, tab||'datos');
   } catch(e) {
     body.innerHTML = '<div style="padding:2rem;color:var(--red)">Error: ' + e.message + '</div>';
   }
 }
 
-function renderCotEditBody(cot) {
+function renderCotEditBody(cot, activeTab) {
   const body = document.getElementById('cot-edit-body');
   const items = cot.items || [];
-  // FIX: función auxiliar para escapar HTML y prevenir XSS
   const esc = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  const tab = activeTab || 'datos';
+
+  const estadoInfo = {
+    enviada:        { ico:'📤', label:'Enviada',        color:'#3B82F6' },
+    en_negociacion: { ico:'🤝', label:'En negociación', color:'#F59E0B' },
+    ganada:         { ico:'🏆', label:'Ganada',         color:'#10B981' },
+    perdida:        { ico:'❌', label:'Perdida',        color:'#EF4444' },
+    aplazada:       { ico:'⏸️', label:'Aplazada',       color:'#8B5CF6' },
+    sin_respuesta:  { ico:'🔇', label:'Sin respuesta',  color:'#6B7280' },
+  };
+  const estadoActual = cot.estado || '';
+
+  // Render timeline entries
+  const segs = (cot.seguimientos || []).slice().reverse();
+  const timelineHTML = segs.length === 0
+    ? '<div class="seg-empty">Sin seguimientos aún. Agrega el primero abajo.</div>'
+    : segs.map(s => {
+        const ei = estadoInfo[s.estado] || {};
+        const inicial = (s.autor||'U')[0].toUpperCase();
+        const badgeStyle = ei.color ? `background:${ei.color}` : 'background:#999';
+        return `<div class="seg-entry">
+          <div class="seg-avatar">${inicial}</div>
+          <div class="seg-bubble">
+            <div class="seg-bubble-top">
+              <span class="seg-bubble-who">${esc(s.autor||'Usuario')}</span>
+              ${ei.label ? `<span class="seg-bubble-estado" style="${badgeStyle}">${ei.ico} ${ei.label}</span>` : ''}
+              <span class="seg-bubble-when">${s.fechaStr||''}</span>
+            </div>
+            ${s.comentario ? `<div class="seg-bubble-comment">${esc(s.comentario)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
   body.innerHTML = `
-    <div class="cot-edit-section">
-      <div class="cot-edit-section-title">Datos del proyecto</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Cliente / Proyecto</label><input id="ce-cliente" value="${esc(cot.cliente)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
-        <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Empresa</label><input id="ce-empresa" value="${esc(cot.empresa)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
-        <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Ciudad</label><input id="ce-ciudad" value="${esc(cot.ciudad)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
-        <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Vigencia (días)</label><input id="ce-vigencia" type="number" value="${esc(cot.vigencia||30)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
+    <div class="seg-tabs">
+      <button class="seg-tab ${tab==='datos'?'active':''}" onclick="renderCotEditBody(cotEditDoc,'datos')">✏️ Datos</button>
+      <button class="seg-tab ${tab==='items'?'active':''}" onclick="renderCotEditBody(cotEditDoc,'items')">📋 Ítems</button>
+      <button class="seg-tab ${tab==='seguimiento'?'active':''}" onclick="renderCotEditBody(cotEditDoc,'seguimiento')">📊 Seguimiento ${(cot.seguimientos||[]).length>0?'<span style=\'background:var(--red);color:#fff;border-radius:999px;padding:1px 6px;font-size:10px;margin-left:4px\'>'+(cot.seguimientos||[]).length+'</span>':''}</button>
+    </div>
+
+    <!-- TAB: DATOS -->
+    <div class="seg-panel ${tab==='datos'?'active':''}">
+      <div class="cot-edit-section">
+        <div class="cot-edit-section-title">Datos del proyecto</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Cliente / Proyecto</label><input id="ce-cliente" value="${esc(cot.cliente)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Empresa</label><input id="ce-empresa" value="${esc(cot.empresa)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Ciudad</label><input id="ce-ciudad" value="${esc(cot.ciudad)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
+          <div><label style="font-size:11px;font-weight:600;color:var(--text3);display:block;margin-bottom:3px">Vigencia (días)</label><input id="ce-vigencia" type="number" value="${esc(cot.vigencia||30)}" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box"/></div>
+        </div>
       </div>
     </div>
-    <div class="cot-edit-section">
-      <div class="cot-edit-section-title">Ítems</div>
-      <div style="display:grid;grid-template-columns:1fr 60px 100px 60px 32px;gap:5px;padding:0 0 6px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">
-        <span>Descripción</span><span style="text-align:center">Cant.</span><span style="text-align:right">Precio</span><span style="text-align:center">Mg%</span><span></span>
+
+    <!-- TAB: ITEMS -->
+    <div class="seg-panel ${tab==='items'?'active':''}">
+      <div class="cot-edit-section">
+        <div class="cot-edit-section-title">Ítems</div>
+        <div style="display:grid;grid-template-columns:1fr 60px 100px 60px 32px;gap:5px;padding:0 0 6px;border-bottom:2px solid var(--border);font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">
+          <span>Descripción</span><span style="text-align:center">Cant.</span><span style="text-align:right">Precio</span><span style="text-align:center">Mg%</span><span></span>
+        </div>
+        <div id="ce-items">${items.map((it,i)=>`
+          <div class="cot-item-row" id="ce-row-${i}">
+            <input value="${esc(it.desc)}" onchange="cotEditItemChange(${i},'desc',this.value)"/>
+            <input type="number" value="${it.qty||1}" min="1" onchange="cotEditItemChange(${i},'qty',+this.value)" style="text-align:center"/>
+            <input type="number" value="${it.precio||0}" onchange="cotEditItemChange(${i},'precio',+this.value)" style="text-align:right"/>
+            <input type="number" value="${it.mg||0}" min="0" max="100" onchange="cotEditItemChange(${i},'mg',+this.value)" style="text-align:center"/>
+            <button onclick="cotEditEliminarItem(${i})" style="background:#FEE2E2;border:none;border-radius:6px;color:#C53030;cursor:pointer;font-size:14px;width:28px;height:28px;padding:0">×</button>
+          </div>`).join('')}</div>
+        <button onclick="cotEditAgregarItem()" style="margin-top:10px;padding:7px 14px;background:#f0f0ee;border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">+ Agregar ítem</button>
       </div>
-      <div id="ce-items">${items.map((it,i)=>`
-        <div class="cot-item-row" id="ce-row-${i}">
-          <input value="${esc(it.desc)}" onchange="cotEditItemChange(${i},'desc',this.value)"/>
-          <input type="number" value="${it.qty||1}" min="1" onchange="cotEditItemChange(${i},'qty',+this.value)" style="text-align:center"/>
-          <input type="number" value="${it.precio||0}" onchange="cotEditItemChange(${i},'precio',+this.value)" style="text-align:right"/>
-          <input type="number" value="${it.mg||0}" min="0" max="100" onchange="cotEditItemChange(${i},'mg',+this.value)" style="text-align:center"/>
-          <button onclick="cotEditEliminarItem(${i})" style="background:#FEE2E2;border:none;border-radius:6px;color:#C53030;cursor:pointer;font-size:14px;width:28px;height:28px;padding:0">×</button>
-        </div>`).join('')}</div>
-      <button onclick="cotEditAgregarItem()" style="margin-top:10px;padding:7px 14px;background:#f0f0ee;border:1px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;font-weight:600">+ Agregar ítem</button>
     </div>
+
+    <!-- TAB: SEGUIMIENTO -->
+    <div class="seg-panel ${tab==='seguimiento'?'active':''}">
+      <div class="cot-edit-section">
+        <div class="cot-edit-section-title">Estado actual</div>
+        <div class="estado-grid">
+          ${Object.entries(estadoInfo).map(([k,v])=>`
+            <button class="estado-btn ${estadoActual===k?'sel':''}" data-e="${k}" onclick="cotEditSetEstado('${k}')">
+              <span class="e-ico">${v.ico}</span>${v.label}
+            </button>`).join('')}
+        </div>
+      </div>
+      <div class="cot-edit-section">
+        <div class="cot-edit-section-title">Historial de seguimiento</div>
+        <div class="seg-timeline">${timelineHTML}</div>
+      </div>
+      <div class="seg-add">
+        <div class="seg-add-title">Nuevo registro</div>
+        <textarea id="seg-comentario" placeholder="Escribe un comentario sobre esta cotización... (ej: Cliente pidió descuento, reunión programada para el viernes)"></textarea>
+        <div class="seg-add-row">
+          <select id="seg-estado-select">
+            <option value="">— Cambiar estado (opcional) —</option>
+            ${Object.entries(estadoInfo).map(([k,v])=>`<option value="${k}">${v.ico} ${v.label}</option>`).join('')}
+          </select>
+          <button class="btn-seg-add" onclick="cotEditAgregarSeguimiento()">➕ Registrar</button>
+        </div>
+      </div>
+    </div>
+
     <div class="cot-edit-actions">
       <button onclick="cerrarCotEdit()" style="padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;font-size:13px">Cancelar</button>
       <button onclick="cotEditGuardar()" style="padding:10px 24px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">💾 Guardar</button>
@@ -5115,7 +5198,9 @@ async function cotEditGuardar() {
       cliente:cotEditDoc.cliente, empresa:cotEditDoc.empresa, ciudad:cotEditDoc.ciudad,
       vigencia:cotEditDoc.vigencia, items:cotEditDoc.items,
       subtotal:cotEditDoc.subtotal, iva:cotEditDoc.iva, total:cotEditDoc.total,
-      fecha_str:cotEditDoc.fechaStr // FIX: persistir fecha actualizada
+      fecha_str:cotEditDoc.fechaStr,
+      estado: cotEditDoc.estado || null,
+      seguimientos: cotEditDoc.seguimientos || []
     }).eq('id', cotEditDoc.id);
     toast('✓ Cotización actualizada','ok');
     crmLoaded=false; crmCargar(); cerrarCotEdit();
@@ -5126,6 +5211,54 @@ function cotEditGenerarPDF() {
   lastCot={ titulo:cotEditDoc.consec, slug:cotEditDoc.consec, emp:{ nom:cotEditDoc.empresa||'', ciudad:cotEditDoc.ciudad||'', fecha:cotEditDoc.fechaStr||'', consec:cotEditDoc.consec||'', vendedor:cotEditDoc.vendedor||'', cliente:cotEditDoc.cliente||'', vigencia:cotEditDoc.vigencia||'30' }, items:cotEditDoc.items||[], subtotal:cotEditDoc.subtotal||0, iva:cotEditDoc.iva||0, total:cotEditDoc.total||0 };
   generarPDF(); toast('📄 Generando PDF...','ok');
 }
+
+/* ---- SEGUIMIENTO ---- */
+function cotEditSetEstado(e) {
+  if (!cotEditDoc) return;
+  cotEditDoc.estado = e;
+  // Re-render only the estado buttons to avoid losing textarea content
+  document.querySelectorAll('.estado-btn').forEach(btn => {
+    btn.classList.toggle('sel', btn.dataset.e === e);
+  });
+}
+
+async function cotEditAgregarSeguimiento() {
+  if (!cotEditDoc) return;
+  const comentario = (document.getElementById('seg-comentario')?.value || '').trim();
+  const nuevoEstado = document.getElementById('seg-estado-select')?.value || '';
+  if (!comentario && !nuevoEstado) {
+    toast('Escribe un comentario o selecciona un estado', 'err');
+    return;
+  }
+  const hoy = new Date();
+  const fechaStr = `${hoy.getDate().toString().padStart(2,'0')}/${(hoy.getMonth()+1).toString().padStart(2,'0')}/${hoy.getFullYear()} ${hoy.getHours().toString().padStart(2,'0')}:${hoy.getMinutes().toString().padStart(2,'0')}`;
+  const autor = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Usuario';
+
+  const entrada = {
+    fecha: hoy.getTime(),
+    fechaStr,
+    autor,
+    comentario,
+    estado: nuevoEstado || cotEditDoc.estado || ''
+  };
+
+  if (!cotEditDoc.seguimientos) cotEditDoc.seguimientos = [];
+  cotEditDoc.seguimientos.push(entrada);
+  if (nuevoEstado) cotEditDoc.estado = nuevoEstado;
+
+  try {
+    await _sb.from('cotizaciones').update({
+      seguimientos: cotEditDoc.seguimientos,
+      estado: cotEditDoc.estado || null
+    }).eq('id', cotEditDoc.id);
+    toast('✓ Seguimiento registrado', 'ok');
+    renderCotEditBody(cotEditDoc, 'seguimiento');
+  } catch(e) {
+    cotEditDoc.seguimientos.pop(); // revert
+    toast('Error: ' + e.message, 'err');
+  }
+}
+
 function cerrarCotEdit() { document.getElementById('modal-cot-edit').classList.remove('open'); cotEditDoc=null; }
 </script>
 </body>
