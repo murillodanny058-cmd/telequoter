@@ -3138,134 +3138,118 @@ function agregarRuijieACot(ref, nombre, precio, qty) {
 }
 
 /* ============================================================
-   SUPABASE — Auth + Database
+   SUPABASE — Configuración
    ============================================================ */
-const SUPABASE_URL  = 'https://ydfhuscgtenemlykxpfv.supabase.co';
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlkZmh1c2NndGVuZW1seWt4cGZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc2NzMwMDAsImV4cCI6MjA5MzI0OTAwMH0.7lG4a2U2XakF1iLUR4v5si9bumbsKmQDyF5qz01LbW4';
+const SUPABASE_URL = 'https://cdagmwxapjbzmvkowzek.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkYWdtd3hhcGpiem12a293emVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMDY2NDgsImV4cCI6MjA5MzY4MjY0OH0.XVgahguEzUYyM9BxTFFmrxwvq8RCp5kyGOwPZ6-dK_Q';
 const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
-let currentRole = 'vendedor'; // FIX: declaración explícita evita variable global implícita
-let histData = [];
+let currentRole  = 'vendedor';
+let histData     = [];
 
-/* AUTH */
+/* ── Lee el rol del token JWT (sin consultar tabla) ── */
+function leerRol(user) {
+  const rol = ((user.user_metadata || {}).rol || '').trim().toLowerCase();
+  console.log('[TQ] rol token:', rol, '| meta:', JSON.stringify(user.user_metadata));
+  return rol === 'admin' ? 'admin' : 'vendedor';
+}
+
+/* ── Aplica visibilidad según rol ── */
+function aplicarUISegunRol() {
+  const esAdmin = currentRole === 'admin';
+  document.getElementById('btn-admin-ref').style.display = esAdmin ? 'block' : 'none';
+  document.getElementById('btn-uid-info').style.display  = esAdmin ? 'block' : 'none';
+  document.getElementById('btn-dash').style.display      = 'block';
+  document.querySelectorAll('.crm-action-btn.admin-only')
+    .forEach(b => b.style.display = esAdmin ? 'inline-block' : 'none');
+  const vp = document.getElementById('crm-panel-vendedores');
+  if (vp) vp.style.display = esAdmin ? 'block' : 'none';
+  console.log('[TQ] UI → esAdmin:', esAdmin);
+}
+
+/* ── Pantalla de login ── */
+function mostrarLogin() {
+  currentUser = null; currentRole = 'vendedor';
+  document.getElementById('login-screen').style.display      = 'flex';
+  document.getElementById('crm-home').style.display          = 'none';
+  document.getElementById('cotizador-container').style.display = 'none';
+  document.getElementById('nav-uname').textContent           = '';
+  document.getElementById('btn-admin-ref').style.display     = 'none';
+  document.getElementById('btn-uid-info').style.display      = 'none';
+  document.getElementById('btn-dash').style.display          = 'none';
+  document.querySelectorAll('.crm-action-btn.admin-only').forEach(b => b.style.display = 'none');
+  const btn = document.getElementById('li-btn');
+  if (btn) { btn.textContent = 'Entrar'; btn.disabled = false; }
+}
+
+/* ── Iniciar sesión ── */
+async function iniciarSesionApp(user) {
+  currentUser = { ...user, uid: user.id };
+  currentRole = leerRol(user);
+  console.log('[TQ] Sesión OK → uid:', user.id, '| rol:', currentRole);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('nav-uname').textContent = user.email.split('@')[0];
+  const vEl = document.getElementById('e_vendedor');
+  if (vEl && !vEl.value) vEl.value = (user.user_metadata?.nombre || user.email.split('@')[0]);
+  // Asegurar perfil en tabla
+  try {
+    const { data } = await _sb.from('usuarios').select('id').eq('id', user.id).single();
+    if (!data) await _sb.from('usuarios').insert({
+      id: user.id, email: user.email,
+      nombre: user.user_metadata?.nombre || user.email.split('@')[0],
+      rol: currentRole, creado_ms: Date.now()
+    });
+  } catch(e) { console.warn('[TQ] perfil:', e.message); }
+  aplicarUISegunRol();
+  cargarRefsParaCotizar();
+  cargarClientesParaCotizar();
+  setTimeout(sincronizarConsecutivo, 1500);
+  mostrarCRM();
+  setTimeout(aplicarUISegunRol, 800);
+}
+
+/* ── Auth listener ── */
 _sb.auth.onAuthStateChange(async (event, session) => {
-  const user = session ? session.user : null;
-  if (user) {
-    currentUser = { ...user, uid: user.id };
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('nav-uname').textContent = user.email.split('@')[0];
-    console.log('UID:', user.id);
-    try {
-      // FIX: intentar cargar el rol con reintento y mejor manejo de errores
-      let rolData = null;
-      for (let intento = 0; intento < 3; intento++) {
-        try {
-          const { data, error } = await _sb.from('usuarios').select('*').eq('id', user.id).single();
-          if (error) { console.warn('Intento', intento+1, 'error:', error.message); await new Promise(r=>setTimeout(r,600)); continue; }
-          rolData = data; break;
-        } catch(e) { console.warn('Intento', intento+1, 'excepción:', e.message); await new Promise(r=>setTimeout(r,600)); }
-      }
-      if (rolData) {
-        currentRole = (rolData.rol || '').trim().toLowerCase() === 'admin' ? 'admin' : 'vendedor';
-        console.log('Rol cargado:', currentRole, '| data.rol:', rolData.rol);
-        const vEl = document.getElementById('e_vendedor');
-        if (vEl && !vEl.value) vEl.value = rolData.nombre || user.email.split('@')[0];
-      } else {
-        currentRole = 'vendedor';
-        console.warn('No se pudo leer rol, creando usuario con rol vendedor');
-        try { await _sb.from('usuarios').insert({ id: user.id, email: user.email, rol: 'vendedor', nombre: user.email.split('@')[0], creado_ms: Date.now() }); } catch(e) {}
-      }
-    } catch(e) { console.error('Error cargando rol:', e); currentRole = 'vendedor'; }
-
-    console.log('currentRole final:', currentRole);
-    const adminBtn = document.getElementById('btn-admin-ref');
-    const uidBtn = document.getElementById('btn-uid-info');
-    if (currentRole === 'admin') {
-      if (adminBtn) adminBtn.style.display = 'block';
-      if (uidBtn) uidBtn.style.display = 'block';
-      document.querySelectorAll('.crm-action-btn.admin-only').forEach(b => b.style.display = 'inline-block');
-    } else {
-      if (adminBtn) adminBtn.style.display = 'none';
-      if (uidBtn) uidBtn.style.display = 'none';
-    }
-    document.getElementById('btn-dash').style.display = 'block';
-    cargarRefsParaCotizar();
-    setTimeout(sincronizarConsecutivo, 1500);
-    cargarClientesParaCotizar();
-    mostrarCRM();
-    // Re-aplicar visibilidad admin despues de que el DOM del CRM este listo
-    setTimeout(() => {
-      if (currentRole === 'admin') {
-        const ab = document.getElementById('btn-admin-ref');
-        if (ab) ab.style.display = 'block';
-        document.querySelectorAll('.crm-action-btn.admin-only').forEach(b => b.style.display = 'inline-block');
-        const vp = document.getElementById('crm-panel-vendedores');
-        if (vp) vp.style.display = 'block';
-      }
-    }, 300);
-  } else {
-    currentUser = null;
-    currentRole = 'vendedor';
-    document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('crm-home').style.display = 'none';
-    document.getElementById('cotizador-container').style.display = 'none';
-    document.getElementById('nav-uname').textContent = '';
-    document.getElementById('btn-admin-ref').style.display = 'none';
-    document.getElementById('btn-uid-info').style.display = 'none';
-    document.getElementById('btn-dash').style.display = 'none';
-  }
+  console.log('[TQ] Auth event:', event);
+  if (event === 'SIGNED_IN')  await iniciarSesionApp(session.user);
+  if (event === 'SIGNED_OUT') mostrarLogin();
 });
 
-function mostrarUID() {
-  if (!currentUser) return;
-  alert('UID: ' + currentUser.uid + '\nRol: ' + currentRole);
-}
-
-// FIX: función de emergencia para forzar recarga del rol admin
-async function recargarRol() {
-  if (!currentUser) { alert('No hay sesión activa'); return; }
+/* ── Verificar sesión al cargar ── */
+window.addEventListener('load', async () => {
+  if (location.protocol === 'file:') {
+    const note = document.querySelector('.login-note');
+    if (note) note.innerHTML = '<span style="color:#D72B1F;font-weight:600">⚠️ Abre con Live Server, no desde file://</span>';
+    return;
+  }
   try {
-    const { data, error } = await _sb.from('usuarios').select('*').eq('id', currentUser.uid).single();
-    if (error) { alert('Error: ' + error.message); return; }
-    if (!data) { alert('Usuario no encontrado en tabla usuarios'); return; }
-    currentRole = (data.rol||'').trim().toLowerCase() === 'admin' ? 'admin' : 'vendedor';
-    alert('Rol recargado: ' + currentRole);
-    const adminBtn = document.getElementById('btn-admin-ref');
-    const uidBtn   = document.getElementById('btn-uid-info');
-    if (currentRole === 'admin') {
-      if (adminBtn) adminBtn.style.display = 'block';
-      if (uidBtn)   uidBtn.style.display   = 'block';
-      document.querySelectorAll('.crm-action-btn.admin-only').forEach(b => b.style.display = 'inline-block');
-      const vp = document.getElementById('crm-panel-vendedores');
-      if (vp) vp.style.display = 'block';
-    }
-  } catch(e) { alert('Excepción: ' + e.message); }
-}
+    const { data: { session } } = await _sb.auth.getSession();
+    if (session?.user) await iniciarSesionApp(session.user);
+    else mostrarLogin();
+  } catch(e) { console.error('[TQ] getSession:', e); mostrarLogin(); }
+});
 
+/* ── Login ── */
 async function doLogin() {
   const email = document.getElementById('li-email').value.trim();
   const pass  = document.getElementById('li-pass').value;
   const err   = document.getElementById('li-err');
   const btn   = document.getElementById('li-btn');
   err.textContent = '';
-  if (!email || !pass) { err.textContent = 'Completa los dos campos.'; return; }
+  if (!email || !pass) { err.textContent = 'Completa correo y contraseña.'; return; }
   btn.textContent = 'Ingresando...'; btn.disabled = true;
-  err.style.color = '#5C5C58'; err.textContent = 'Verificando...';
   try {
-    const { data, error } = await _sb.auth.signInWithPassword({ email, password: pass });
+    const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
     if (error) {
       btn.textContent = 'Entrar'; btn.disabled = false;
       err.style.color = 'var(--red)';
       const msgs = {
         'Invalid login credentials': 'Correo o contraseña incorrectos.',
-        'Email not confirmed': 'Confirma tu correo primero.',
-        'Too many requests': 'Demasiados intentos. Espera un momento.',
-        'Invalid API key': 'Error de configuración del servidor. Contacta al administrador.'
+        'Email not confirmed':        'Confirma tu correo primero.',
+        'Too many requests':          'Demasiados intentos. Espera un momento.'
       };
-      err.textContent = msgs[error.message] || ('Error: ' + error.message);
-    } else {
-      err.textContent = '';
+      err.textContent = msgs[error.message] || 'Error: ' + error.message;
     }
   } catch(ex) {
     btn.textContent = 'Entrar'; btn.disabled = false;
@@ -3274,40 +3258,24 @@ async function doLogin() {
   }
 }
 
+/* ── Logout ── */
 async function doLogout() {
-  try {
-    await _sb.auth.signOut();
-    currentUser = null;
-    currentRole = 'vendedor';
-  } catch(e) {
-    console.warn('signOut error:', e);
-  }
-  window.location.reload();
+  try { await _sb.auth.signOut(); } catch(e) { console.warn('[TQ] signOut:', e.message); }
+  mostrarLogin();
 }
 
-/* TEST CONEXION FIREBASE */
-async function testConexionSupabase() {
-  try {
-    await _sb.from('usuarios').select('id').limit(1);
-    console.log('✅ Firebase conectado correctamente');
-  } catch(e) {
-    console.error('ERROR DE CONFIGURACION FIREBASE:', e.message);
-    const loginNote = document.querySelector('.login-note');
-    if (loginNote) loginNote.innerHTML = '<span style="color:#D72B1F;font-weight:600">&#9888; Error de configuración del servidor. Contacta al administrador.<br><small>' + e.message + '</small></span>';
-  }
+function mostrarUID() {
+  if (!currentUser) return;
+  alert('UID: ' + currentUser.uid + '\nRol: ' + currentRole + '\nMeta: ' + JSON.stringify(currentUser.user_metadata));
 }
-// Ejecutar test al cargar
-window.addEventListener('load', () => {
-  setTimeout(testConexionSupabase, 1000);
-  // FIX: advertencia si se abre desde file:// (CORS bloqueará Supabase)
-  if (location.protocol === 'file:') {
-    const loginNote = document.querySelector('.login-note');
-    if (loginNote) loginNote.innerHTML = `
-      <span style="color:#D72B1F;font-weight:600">⚠️ Estás abriendo desde <code>file://</code></span><br>
-      <span style="color:#633806">Supabase no funciona desde archivos locales por restricciones CORS.<br>
-      Usa <strong>Live Server</strong> en VS Code, o sube el archivo a un servidor web.</span>`;
-  }
-});
+
+async function recargarRol() {
+  if (!currentUser) { alert('Sin sesión'); return; }
+  try {
+    const { data: { user } } = await _sb.auth.getUser();
+    if (user) { currentRole = leerRol(user); currentUser = {...user, uid: user.id}; aplicarUISegunRol(); alert('Rol: ' + currentRole); }
+  } catch(e) { alert('Error: ' + e.message); }
+}
 
 /* TOAST */
 function toast(msg, tipo='') {
@@ -3835,36 +3803,32 @@ async function crearUsuario() {
   const pass   = document.getElementById('nu-pass').value;
   const rol    = document.getElementById('nu-rol').value;
   const status = document.getElementById('nu-status');
-
   if (!nombre||!email||!pass) { status.style.color='var(--red)'; status.textContent='Completa todos los campos.'; return; }
-  if (pass.length<6)          { status.style.color='var(--red)'; status.textContent='La contraseña debe tener mínimo 6 caracteres.'; return; }
-
+  if (pass.length<6) { status.style.color='var(--red)'; status.textContent='Mínimo 6 caracteres.'; return; }
   status.style.color='var(--text2)'; status.textContent='⏳ Creando usuario...';
-
+  // Guardar sesión admin antes del signUp
+  let tokenAdmin=null, refreshAdmin=null;
+  try { const {data:s} = await _sb.auth.getSession(); tokenAdmin=s?.session?.access_token; refreshAdmin=s?.session?.refresh_token; } catch(_){}
   try {
-    // Supabase: signUp crea el usuario en Auth sin cerrar sesión del admin
-    const { data: signUpData, error: signUpErr } = await _sb.auth.signUp({ email, password: pass });
+    const { data: signUpData, error: signUpErr } = await _sb.auth.signUp({
+      email, password: pass, options: { data: { rol, nombre } }
+    });
     if (signUpErr) throw new Error(signUpErr.message);
     const newUid = signUpData.user?.id;
-    if (!newUid) throw new Error('No se pudo obtener el UID del nuevo usuario.');
-
-    // Insertar en tabla usuarios
-    const { error: insErr } = await _sb.from('usuarios').insert({
-      id: newUid, email, nombre, rol,
-      creado_ms: Date.now(),
-      creado_por: currentUser?.uid || currentUser?.id || ''
-    });
-    if (insErr) throw new Error(insErr.message);
-
+    if (!newUid) throw new Error('No se pudo obtener el UID.');
+    // Restaurar sesión admin
+    if (tokenAdmin && refreshAdmin) await _sb.auth.setSession({ access_token: tokenAdmin, refresh_token: refreshAdmin });
+    // Insertar perfil
+    await _sb.from('usuarios').insert({ id: newUid, email, nombre, rol, creado_ms: Date.now(), creado_por: currentUser?.uid||'' });
     status.style.color='#2D6A1F';
-    status.textContent=`✅ Usuario "${nombre}" creado como ${rol}. Comparte sus credenciales de forma segura.`;
+    status.textContent=`✅ Usuario "${nombre}" creado como ${rol}.`;
     ['nu-nombre','nu-email','nu-pass'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nu-rol').value='vendedor';
     toast(`✓ Usuario ${nombre} creado`,'ok');
     cargarUsuarios();
   } catch(e) {
-    status.style.color='var(--red)';
-    status.textContent='❌ '+e.message;
+    if (tokenAdmin && refreshAdmin) try { await _sb.auth.setSession({ access_token: tokenAdmin, refresh_token: refreshAdmin }); } catch(_){}
+    status.style.color='var(--red)'; status.textContent='❌ '+e.message;
   }
 }
 
