@@ -3148,11 +3148,24 @@ let currentUser = null;
 let currentRole  = 'vendedor';
 let histData     = [];
 
-/* ── Lee el rol del token JWT (sin consultar tabla) ── */
-function leerRol(user) {
-  const rol = ((user.user_metadata || {}).rol || '').trim().toLowerCase();
-  console.log('[TQ] rol token:', rol, '| meta:', JSON.stringify(user.user_metadata));
-  return rol === 'admin' ? 'admin' : 'vendedor';
+/* ── Lee el rol: primero token, luego tabla como respaldo ── */
+async function leerRol(user) {
+  // 1. Intentar desde user_metadata del token
+  const rolToken = ((user.user_metadata || {}).rol || '').trim().toLowerCase();
+  console.log('[TQ] rol token:', rolToken);
+  if (rolToken === 'admin') return 'admin';
+
+  // 2. Si no viene en el token, leer desde la tabla usuarios
+  try {
+    const { data, error } = await _sb.from('usuarios').select('rol').eq('id', user.id).single();
+    if (!error && data) {
+      const rolTabla = (data.rol || '').trim().toLowerCase();
+      console.log('[TQ] rol tabla:', rolTabla);
+      return rolTabla === 'admin' ? 'admin' : 'vendedor';
+    }
+  } catch(e) { console.warn('[TQ] leerRol tabla:', e.message); }
+
+  return 'vendedor';
 }
 
 /* ── Aplica visibilidad según rol ── */
@@ -3186,7 +3199,7 @@ function mostrarLogin() {
 /* ── Iniciar sesión ── */
 async function iniciarSesionApp(user) {
   currentUser = { ...user, uid: user.id };
-  currentRole = leerRol(user);
+  currentRole = await leerRol(user);
   console.log('[TQ] Sesión OK → uid:', user.id, '| rol:', currentRole);
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('nav-uname').textContent = user.email.split('@')[0];
@@ -3224,9 +3237,17 @@ window.addEventListener('load', async () => {
     return;
   }
   try {
-    const { data: { session } } = await _sb.auth.getSession();
-    if (session?.user) await iniciarSesionApp(session.user);
-    else mostrarLogin();
+    // Usar getUser() en vez de getSession() para obtener datos frescos del servidor
+    // incluyendo user_metadata actualizado (rol)
+    const { data: { user }, error } = await _sb.auth.getUser();
+    if (user && !error) {
+      await iniciarSesionApp(user);
+    } else {
+      // Fallback: intentar con getSession
+      const { data: { session } } = await _sb.auth.getSession();
+      if (session?.user) await iniciarSesionApp(session.user);
+      else mostrarLogin();
+    }
   } catch(e) { console.error('[TQ] getSession:', e); mostrarLogin(); }
 });
 
