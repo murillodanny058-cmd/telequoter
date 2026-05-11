@@ -469,6 +469,142 @@ footer strong{color:var(--text2)}
   .crm-stat-val{font-size:20px}
   .cot-item-row{grid-template-columns:1fr 60px 80px 60px 30px}
 }
+
+/* =====================================================
+   RESPONSIVE MEJORADO — Celular y Tablet
+   ===================================================== */
+
+/* Viewport meta ya está en el head — buena base */
+
+/* ── NAVEGACIÓN MÓVIL ── */
+@media(max-width:600px){
+  nav{padding:0 1rem;height:auto;min-height:56px;flex-wrap:wrap;gap:6px;padding-top:8px;padding-bottom:8px}
+  .nav-brand{flex:1}
+  .nav-title{font-size:13px}
+  .nav-sub{display:none}
+  .nav-user{flex-wrap:wrap;gap:4px;justify-content:flex-end}
+  .nav-btn{padding:5px 8px!important;font-size:10px!important;border-radius:6px}
+  .nav-user-name{max-width:90px;font-size:11px}
+}
+
+/* ── LOGIN ── */
+@media(max-width:480px){
+  .login-box{padding:1.5rem 1.25rem;border-radius:12px}
+  .login-logo-text{font-size:17px}
+  .login-f input{font-size:14px;padding:12px}
+  .login-btn{font-size:15px;padding:13px}
+}
+
+/* ── LAYOUT GENERAL ── */
+@media(max-width:600px){
+  .container{padding:1rem .75rem}
+  .card,.main-card{padding:.85rem}
+  .sol-grid{grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .sol-card{padding:.85rem .5rem}
+  .sol-icon{font-size:22px;margin-bottom:5px}
+  .sol-title{font-size:11px}
+  .sol-desc{display:none}
+}
+
+/* ── CRM HOME ── */
+@media(max-width:600px){
+  .crm-wrap{padding:.85rem .75rem}
+  .crm-topbar{flex-direction:column;gap:8px}
+  .crm-search-wrap{width:100%}
+  .crm-actions{width:100%;justify-content:flex-start}
+  .crm-action-btn{flex:1;text-align:center;padding:8px 6px;font-size:11px}
+  .crm-stats{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+  .crm-stat{padding:.75rem .85rem}
+  .crm-stat-val{font-size:22px}
+  .crm-grid{grid-template-columns:1fr}
+  #crm-main-grid{grid-template-columns:1fr!important}
+}
+
+/* ── TABLA COTIZACIÓN ── */
+@media(max-width:600px){
+  .table-wrap{padding:0 .5rem .75rem}
+  table.mat{font-size:11px;min-width:580px}
+  table.mat th,table.mat td{padding:5px 6px}
+  .mg-input{width:46px;font-size:11px}
+  .precio-edit{width:68px;font-size:11px}
+  .date-input{width:110px;font-size:11px}
+}
+
+/* ── RESULTADO / BOTONES ── */
+@media(max-width:600px){
+  .res-topbar{flex-direction:column;gap:8px;padding:.85rem 1rem}
+  .btn-pdf,.btn-guardar{width:100%;justify-content:center}
+  .cot-info{flex-direction:column;gap:10px;padding:.85rem 1rem}
+  .cot-cliente{text-align:left}
+  .exec-section,.obs-section{padding:.85rem 1rem}
+  .obs-grid{grid-template-columns:1fr!important}
+  .add-libre-row{flex-direction:column;padding:.75rem 1rem}
+  .add-libre-row .f{min-width:100%}
+  .btn-add-libre{width:100%}
+}
+
+/* ── MODALES ── */
+@media(max-width:600px){
+  .modal-overlay{padding:.5rem;align-items:flex-end}
+  .modal-box{border-radius:16px 16px 0 0;max-width:100%!important;width:100%!important;max-height:92vh}
+  .modal-header{padding:1rem 1.25rem}
+  .modal-body{padding:1rem 1.25rem}
+  #modal-cot-edit{padding:.5rem 0 0}
+  .cot-edit-box{border-radius:16px 16px 0 0;max-width:100%!important}
+  .cot-edit-body{max-height:75vh}
+  .cot-edit-actions{flex-wrap:wrap;gap:8px;padding:.85rem 1rem}
+  .cot-edit-actions button{flex:1;min-width:100px}
+}
+
+/* ── MODAL ADMIN ── */
+@media(max-width:600px){
+  .subtabs{gap:4px;padding-bottom:.75rem}
+  .stab{padding:6px 10px;font-size:11px}
+  .grid2,.grid3{grid-template-columns:1fr!important}
+  .hist-search{flex-direction:column}
+  .hist-item{padding:.85rem .85rem .85rem .85rem}
+  .hist-actions{position:relative;top:auto;right:auto;margin-top:8px;display:flex;gap:6px}
+}
+
+/* ── DASHBOARD ── */
+@media(max-width:600px){
+  .dash-grid{grid-template-columns:1fr 1fr!important;gap:8px}
+  .dash-card{padding:.85rem .75rem}
+  .dash-card .d-val{font-size:22px}
+  .dash-chart-wrap{padding:.85rem 1rem}
+  .dash-tab{padding:5px 10px;font-size:11px}
+  #modal-dash .modal-box{max-width:100%!important}
+}
+
+/* ── USUARIOS ── */
+@media(max-width:600px){
+  .usr-card{flex-wrap:wrap;gap:8px}
+  .usr-actions{width:100%;flex-wrap:wrap;margin-top:4px}
+  .usr-btn{flex:1;text-align:center;justify-content:center}
+}
+
+/* ── TABLET (601px - 900px) ── */
+@media(min-width:601px) and (max-width:900px){
+  .container{padding:1.25rem 1rem}
+  .sol-grid{grid-template-columns:repeat(3,1fr)}
+  .crm-stats{grid-template-columns:repeat(3,1fr)!important}
+  .crm-grid{grid-template-columns:repeat(2,1fr)}
+  .obs-grid{grid-template-columns:1fr 1fr}
+  nav{padding:0 1.25rem}
+  .nav-btn{padding:5px 10px;font-size:11px}
+}
+
+/* ── TOUCH: botones más grandes para dedos ── */
+@media(hover:none) and (pointer:coarse){
+  .btn-gen,.btn-pdf,.btn-guardar,.login-btn{min-height:48px}
+  .nav-btn{min-height:36px;display:flex;align-items:center}
+  .stab{min-height:38px;display:flex;align-items:center}
+  .crm-action-btn{min-height:44px}
+  .sol-card{min-height:80px}
+  .f input,.f select{min-height:44px;font-size:16px} /* evita zoom en iOS */
+  .login-f input{font-size:16px} /* evita zoom en iOS al hacer foco */
+}
+
 </style>
 </head>
 <body>
@@ -712,6 +848,142 @@ footer strong{color:var(--text2)}
 .usr-btn:hover{background:var(--bg)}
 .usr-btn.del:hover{background:#FCEBEB;border-color:#E24B4A;color:var(--red)}
 .usr-empty{text-align:center;color:var(--text3);padding:2rem;font-size:13px}
+
+/* =====================================================
+   RESPONSIVE MEJORADO — Celular y Tablet
+   ===================================================== */
+
+/* Viewport meta ya está en el head — buena base */
+
+/* ── NAVEGACIÓN MÓVIL ── */
+@media(max-width:600px){
+  nav{padding:0 1rem;height:auto;min-height:56px;flex-wrap:wrap;gap:6px;padding-top:8px;padding-bottom:8px}
+  .nav-brand{flex:1}
+  .nav-title{font-size:13px}
+  .nav-sub{display:none}
+  .nav-user{flex-wrap:wrap;gap:4px;justify-content:flex-end}
+  .nav-btn{padding:5px 8px!important;font-size:10px!important;border-radius:6px}
+  .nav-user-name{max-width:90px;font-size:11px}
+}
+
+/* ── LOGIN ── */
+@media(max-width:480px){
+  .login-box{padding:1.5rem 1.25rem;border-radius:12px}
+  .login-logo-text{font-size:17px}
+  .login-f input{font-size:14px;padding:12px}
+  .login-btn{font-size:15px;padding:13px}
+}
+
+/* ── LAYOUT GENERAL ── */
+@media(max-width:600px){
+  .container{padding:1rem .75rem}
+  .card,.main-card{padding:.85rem}
+  .sol-grid{grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .sol-card{padding:.85rem .5rem}
+  .sol-icon{font-size:22px;margin-bottom:5px}
+  .sol-title{font-size:11px}
+  .sol-desc{display:none}
+}
+
+/* ── CRM HOME ── */
+@media(max-width:600px){
+  .crm-wrap{padding:.85rem .75rem}
+  .crm-topbar{flex-direction:column;gap:8px}
+  .crm-search-wrap{width:100%}
+  .crm-actions{width:100%;justify-content:flex-start}
+  .crm-action-btn{flex:1;text-align:center;padding:8px 6px;font-size:11px}
+  .crm-stats{grid-template-columns:repeat(2,1fr)!important;gap:8px}
+  .crm-stat{padding:.75rem .85rem}
+  .crm-stat-val{font-size:22px}
+  .crm-grid{grid-template-columns:1fr}
+  #crm-main-grid{grid-template-columns:1fr!important}
+}
+
+/* ── TABLA COTIZACIÓN ── */
+@media(max-width:600px){
+  .table-wrap{padding:0 .5rem .75rem}
+  table.mat{font-size:11px;min-width:580px}
+  table.mat th,table.mat td{padding:5px 6px}
+  .mg-input{width:46px;font-size:11px}
+  .precio-edit{width:68px;font-size:11px}
+  .date-input{width:110px;font-size:11px}
+}
+
+/* ── RESULTADO / BOTONES ── */
+@media(max-width:600px){
+  .res-topbar{flex-direction:column;gap:8px;padding:.85rem 1rem}
+  .btn-pdf,.btn-guardar{width:100%;justify-content:center}
+  .cot-info{flex-direction:column;gap:10px;padding:.85rem 1rem}
+  .cot-cliente{text-align:left}
+  .exec-section,.obs-section{padding:.85rem 1rem}
+  .obs-grid{grid-template-columns:1fr!important}
+  .add-libre-row{flex-direction:column;padding:.75rem 1rem}
+  .add-libre-row .f{min-width:100%}
+  .btn-add-libre{width:100%}
+}
+
+/* ── MODALES ── */
+@media(max-width:600px){
+  .modal-overlay{padding:.5rem;align-items:flex-end}
+  .modal-box{border-radius:16px 16px 0 0;max-width:100%!important;width:100%!important;max-height:92vh}
+  .modal-header{padding:1rem 1.25rem}
+  .modal-body{padding:1rem 1.25rem}
+  #modal-cot-edit{padding:.5rem 0 0}
+  .cot-edit-box{border-radius:16px 16px 0 0;max-width:100%!important}
+  .cot-edit-body{max-height:75vh}
+  .cot-edit-actions{flex-wrap:wrap;gap:8px;padding:.85rem 1rem}
+  .cot-edit-actions button{flex:1;min-width:100px}
+}
+
+/* ── MODAL ADMIN ── */
+@media(max-width:600px){
+  .subtabs{gap:4px;padding-bottom:.75rem}
+  .stab{padding:6px 10px;font-size:11px}
+  .grid2,.grid3{grid-template-columns:1fr!important}
+  .hist-search{flex-direction:column}
+  .hist-item{padding:.85rem .85rem .85rem .85rem}
+  .hist-actions{position:relative;top:auto;right:auto;margin-top:8px;display:flex;gap:6px}
+}
+
+/* ── DASHBOARD ── */
+@media(max-width:600px){
+  .dash-grid{grid-template-columns:1fr 1fr!important;gap:8px}
+  .dash-card{padding:.85rem .75rem}
+  .dash-card .d-val{font-size:22px}
+  .dash-chart-wrap{padding:.85rem 1rem}
+  .dash-tab{padding:5px 10px;font-size:11px}
+  #modal-dash .modal-box{max-width:100%!important}
+}
+
+/* ── USUARIOS ── */
+@media(max-width:600px){
+  .usr-card{flex-wrap:wrap;gap:8px}
+  .usr-actions{width:100%;flex-wrap:wrap;margin-top:4px}
+  .usr-btn{flex:1;text-align:center;justify-content:center}
+}
+
+/* ── TABLET (601px - 900px) ── */
+@media(min-width:601px) and (max-width:900px){
+  .container{padding:1.25rem 1rem}
+  .sol-grid{grid-template-columns:repeat(3,1fr)}
+  .crm-stats{grid-template-columns:repeat(3,1fr)!important}
+  .crm-grid{grid-template-columns:repeat(2,1fr)}
+  .obs-grid{grid-template-columns:1fr 1fr}
+  nav{padding:0 1.25rem}
+  .nav-btn{padding:5px 10px;font-size:11px}
+}
+
+/* ── TOUCH: botones más grandes para dedos ── */
+@media(hover:none) and (pointer:coarse){
+  .btn-gen,.btn-pdf,.btn-guardar,.login-btn{min-height:48px}
+  .nav-btn{min-height:36px;display:flex;align-items:center}
+  .stab{min-height:38px;display:flex;align-items:center}
+  .crm-action-btn{min-height:44px}
+  .sol-card{min-height:80px}
+  .f input,.f select{min-height:44px;font-size:16px} /* evita zoom en iOS */
+  .login-f input{font-size:16px} /* evita zoom en iOS al hacer foco */
+}
+
 </style>
 <!-- modal usuarios integrado en panel admin -->
 
