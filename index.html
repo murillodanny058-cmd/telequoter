@@ -7,7 +7,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <!-- Firebase SDKs -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -1856,7 +1858,7 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
   const head = [['Referencia','Descripción','Cant.','Und.','P. Venta Unit.','Total COP','Entrega']];
   const body = items.map(it => {
     const pv = (it.precio||0)*(1+(it.mg||0)/100);
-    const fd = it.fecha ? new Date(it.fecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : 'Por confirmar';
+    const fd = it.fecha ? (() => { const d = new Date(it.fecha+'T12:00:00'); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; })() : 'Por confirmar';
     return [it.ref||'—', it.desc||'—', String(it.qty||1), it.unit||'und',
       '$'+Math.round(pv).toLocaleString('es-CO'),
       '$'+Math.round(pv*(it.qty||1)).toLocaleString('es-CO'), fd];
@@ -1888,14 +1890,14 @@ function _pdfTablaItems(doc, items, startY, mg, W, subtotal, iva, total) {
       minCellHeight: 9
     },
     columnStyles: {
-      // Ref:28 + Desc:72 + Cant:12 + Und:12 + PVenta:26 + Total:26 + Fecha:6 = 182
-      0: { cellWidth: 28, fontStyle:'bold', textColor:[180,30,20], valign:'middle', halign:'left' },
-      1: { cellWidth: 72, overflow:'linebreak', valign:'middle', halign:'left' },
-      2: { cellWidth: 12, halign:'center', valign:'middle' },
-      3: { cellWidth: 12, halign:'center', valign:'middle' },
-      4: { cellWidth: 26, halign:'right', valign:'middle' },
+      // Ref:26 + Desc:60 + Cant:14 + Und:14 + PVenta:24 + Total:26 + Fecha:18 = 182
+      0: { cellWidth: 26, fontStyle:'bold', textColor:[180,30,20], valign:'middle', halign:'left' },
+      1: { cellWidth: 60, overflow:'linebreak', valign:'middle', halign:'left' },
+      2: { cellWidth: 14, halign:'center', valign:'middle' },
+      3: { cellWidth: 14, halign:'center', valign:'middle' },
+      4: { cellWidth: 24, halign:'right', valign:'middle' },
       5: { cellWidth: 26, halign:'right', fontStyle:'bold', valign:'middle' },
-      6: { cellWidth: 6,  halign:'center', fontSize:7, textColor:[100,100,100], valign:'middle', overflow:'linebreak' }
+      6: { cellWidth: 18, halign:'center', fontSize:7, textColor:[100,100,100], valign:'middle', overflow:'linebreak' }
     },
     // FIX: forzar encabezado col 6 a no partir texto — usar texto corto
     didParseCell: (data) => {
@@ -3138,11 +3140,183 @@ function agregarRuijieACot(ref, nombre, precio, qty) {
 }
 
 /* ============================================================
-   SUPABASE — Configuración
+   FIREBASE — Configuración
    ============================================================ */
-const SUPABASE_URL = 'https://cdagmwxapjbzmvkowzek.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkYWdtd3hhcGpiem12a293emVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMDY2NDgsImV4cCI6MjA5MzY4MjY0OH0.XVgahguEzUYyM9BxTFFmrxwvq8RCp5kyGOwPZ6-dK_Q';
-const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const firebaseConfig = {
+  apiKey: "AIzaSyAeQh3rvbmgQOZ5sT8eCqqP9RnprUA_9jM",
+  authDomain: "telequoterfinal.firebaseapp.com",
+  databaseURL: "https://telequoterfinal-default-rtdb.firebaseio.com",
+  projectId: "telequoterfinal",
+  storageBucket: "telequoterfinal.firebasestorage.app",
+  messagingSenderId: "590847448196",
+  appId: "1:590847448196:web:eb18912e5b541881c51ed1"
+};
+firebase.initializeApp(firebaseConfig);
+const _auth = firebase.auth();
+const _db   = firebase.firestore();
+// Persistencia LOCAL: la sesión sobrevive al recargar la página (comportamiento por defecto en Firebase)
+_auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('Persistence:', e));
+
+/* ── Capa de compatibilidad: _sb emula la API de Supabase sobre Firebase ──
+   Colecciones: usuarios, cotizaciones, referencias, clientes
+   Esto permite migrar sin reescribir cada llamada individualmente.
+   ─────────────────────────────────────────────────────────────────────── */
+const _sb = {
+  auth: {
+    onAuthStateChange: (cb) => {
+      _auth.onAuthStateChanged(async user => {
+        if (user) cb('SIGNED_IN', { user });
+        else      cb('SIGNED_OUT', null);
+      });
+      // Return fake subscription object
+      return { data: { subscription: { unsubscribe: () => {} } } };
+    },
+    signInWithPassword: async ({ email, password }) => {
+      try {
+        await _auth.signInWithEmailAndPassword(email, password);
+        return { error: null };
+      } catch(e) {
+        const msgs = {
+          'auth/user-not-found':  'Invalid login credentials',
+          'auth/wrong-password':  'Invalid login credentials',
+          'auth/invalid-email':   'Invalid login credentials',
+          'auth/too-many-requests': 'Too many requests',
+          'auth/email-not-verified': 'Email not confirmed'
+        };
+        return { error: { message: msgs[e.code] || e.message } };
+      }
+    },
+    signUp: async ({ email, password, options }) => {
+      try {
+        const cred = await _auth.createUserWithEmailAndPassword(email, password);
+        return { data: { user: { id: cred.user.uid, ...cred.user } }, error: null };
+      } catch(e) { return { data: null, error: { message: e.message } }; }
+    },
+    signOut: async () => { await _auth.signOut(); },
+    getUser: async () => {
+      const user = _auth.currentUser;
+      if (!user) return { data: { user: null } };
+      return { data: { user: { id: user.uid, uid: user.uid, email: user.email, user_metadata: {} } } };
+    },
+    getSession: async () => {
+      const user = _auth.currentUser;
+      if (!user) return { data: { session: null } };
+      return { data: { session: { user: { id: user.uid, email: user.email } } } };
+    },
+    setSession: async () => ({})
+  },
+  from: (collection) => new _SbQuery(collection)
+};
+
+/* ── Query builder que emula el API de Supabase ── */
+class _SbQuery {
+  constructor(col) {
+    this._col = col;
+    this._filters = [];
+    this._lim = null;
+    this._orderField = null;
+    this._orderDir = 'asc';
+    this._selectSingle = false;
+    this._updateData = null;
+    this._insertData = null;
+    this._deleteMode = false;
+  }
+  select(fields) { this._fields = fields; return this; }
+  eq(field, val) { this._filters.push({field, op:'==', val}); return this; }
+  limit(n) { this._lim = n; return this; }
+  order(field, opts) { this._orderField = field; this._orderDir = opts?.ascending===false ? 'desc' : 'asc'; return this; }
+  single() { this._selectSingle = true; return this; }
+
+  update(data) { this._updateData = data; return this; }
+  insert(data) { this._insertData = data; return this; }
+  delete() { this._deleteMode = true; return this; }
+
+  // Thenable — executes when awaited
+  then(resolve, reject) { return this._exec().then(resolve, reject); }
+  catch(fn) { return this._exec().catch(fn); }
+
+  async _exec() {
+    try {
+      // Check if filtering by document ID (eq('id', val)) — use doc() directly for efficiency
+      const idFilter = this._filters.find(f => f.field === 'id');
+
+      // DELETE
+      if (this._deleteMode) {
+        if (idFilter) {
+          await _db.collection(this._col).doc(String(idFilter.val)).delete();
+        } else {
+          const snap = await this._buildQuery().get();
+          const batch = _db.batch();
+          snap.docs.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+        return { data: null, error: null };
+      }
+      // UPDATE
+      if (this._updateData) {
+        if (idFilter) {
+          await _db.collection(this._col).doc(String(idFilter.val)).update(this._updateData);
+        } else {
+          const snap = await this._buildQuery().get();
+          const batch = _db.batch();
+          snap.docs.forEach(d => batch.update(d.ref, this._updateData));
+          await batch.commit();
+        }
+        return { data: null, error: null };
+      }
+      // INSERT
+      if (this._insertData) {
+        if (Array.isArray(this._insertData)) {
+          const batch = _db.batch();
+          this._insertData.forEach(item => {
+            const ref = item.id ? _db.collection(this._col).doc(item.id) : _db.collection(this._col).doc();
+            const d = {...item}; if (!d.id) d.id = ref.id;
+            batch.set(ref, d);
+          });
+          await batch.commit();
+        } else {
+          const item = this._insertData;
+          const ref = item.id ? _db.collection(this._col).doc(String(item.id)) : _db.collection(this._col).doc();
+          const d = {...item}; if (!d.id) d.id = ref.id;
+          await ref.set(d);
+        }
+        return { data: null, error: null };
+      }
+      // SELECT
+      let docs;
+      if (idFilter) {
+        // Direct document fetch by ID
+        const docSnap = await _db.collection(this._col).doc(String(idFilter.val)).get();
+        docs = docSnap.exists ? [{ id: docSnap.id, ...docSnap.data() }] : [];
+        // Apply remaining filters in JS
+        const otherFilters = this._filters.filter(f => f.field !== 'id');
+        if (otherFilters.length) {
+          docs = docs.filter(d => otherFilters.every(f => d[f.field] == f.val));
+        }
+      } else {
+        const snap = await this._buildQuery().get();
+        docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+      if (this._selectSingle) {
+        return docs.length ? { data: docs[0], error: null } : { data: null, error: { message: 'Not found' } };
+      }
+      return { data: docs, error: null };
+    } catch(e) {
+      console.error('[FB]', this._col, e.message);
+      return { data: null, error: { message: e.message } };
+    }
+  }
+
+  _buildQuery() {
+    let q = _db.collection(this._col);
+    // Skip 'id' filter — Firestore doc IDs aren't queryable with where()
+    // When selecting by id, we handle it in _exec() directly
+    this._filters.forEach(f => { if (f.field !== 'id') q = q.where(f.field, f.op, f.val); });
+    if (this._orderField) q = q.orderBy(this._orderField, this._orderDir);
+    if (this._lim) q = q.limit(this._lim);
+    return q;
+  }
+}
 
 let currentUser = null;
 let currentRole  = 'vendedor';
@@ -3150,30 +3324,33 @@ let histData     = [];
 
 /* ── Lee el rol: primero token, luego tabla como respaldo ── */
 async function leerRol(user) {
-  // 1. Intentar desde user_metadata del token
-  const rolToken = ((user.user_metadata || {}).rol || '').trim().toLowerCase();
-  console.log('[TQ] rol token:', rolToken);
-  if (rolToken === 'admin') return 'admin';
-
-  // 2. Si no viene en el token, leer desde la tabla usuarios
+  // Firebase: leer rol directamente desde Firestore (fuente de verdad)
   try {
-    const { data, error } = await _sb.from('usuarios').select('rol').eq('id', user.id).single();
-    if (!error && data) {
-      const rolTabla = (data.rol || '').trim().toLowerCase();
-      console.log('[TQ] rol tabla:', rolTabla);
+    const uid = user.uid || user.id;
+    const doc = await _db.collection('usuarios').doc(uid).get();
+    if (doc.exists) {
+      const rolTabla = (doc.data().rol || '').trim().toLowerCase();
+      console.log('[TQ] rol desde Firestore:', rolTabla);
       return rolTabla === 'admin' ? 'admin' : 'vendedor';
     }
-  } catch(e) { console.warn('[TQ] leerRol tabla:', e.message); }
-
+  } catch(e) { console.warn('[TQ] leerRol error:', e.message); }
   return 'vendedor';
 }
 
 /* ── Aplica visibilidad según rol ── */
 function aplicarUISegunRol() {
+  const btnAdmin = document.getElementById('btn-admin-ref');
+  if (!btnAdmin) {
+    console.log('[TQ] aplicarUISegunRol: DOM no listo, reintentando...');
+    setTimeout(aplicarUISegunRol, 200);
+    return;
+  }
   const esAdmin = currentRole === 'admin';
-  document.getElementById('btn-admin-ref').style.display = esAdmin ? 'block' : 'none';
-  document.getElementById('btn-uid-info').style.display  = esAdmin ? 'block' : 'none';
-  document.getElementById('btn-dash').style.display      = 'block';
+  btnAdmin.style.display = esAdmin ? 'block' : 'none';
+  const btnUid = document.getElementById('btn-uid-info');
+  if (btnUid) btnUid.style.display = esAdmin ? 'block' : 'none';
+  const btnDash = document.getElementById('btn-dash');
+  if (btnDash) btnDash.style.display = 'block';
   document.querySelectorAll('.crm-action-btn.admin-only')
     .forEach(b => b.style.display = esAdmin ? 'inline-block' : 'none');
   const vp = document.getElementById('crm-panel-vendedores');
@@ -3196,59 +3373,46 @@ function mostrarLogin() {
   if (btn) { btn.textContent = 'Entrar'; btn.disabled = false; }
 }
 
-/* ── Iniciar sesión ── */
+/* ── Iniciar sesión (Firebase) ── */
 async function iniciarSesionApp(user) {
-  currentUser = { ...user, uid: user.id };
+  const uid = user.uid || user.id;
+  currentUser = { ...user, uid, id: uid };
   currentRole = await leerRol(user);
-  console.log('[TQ] Sesión OK → uid:', user.id, '| rol:', currentRole);
+  console.log('[TQ] Sesión OK → uid:', uid, '| rol:', currentRole);
+  // Resetear botón de login por si quedó bloqueado
+  const liBtn = document.getElementById('li-btn');
+  if (liBtn) { liBtn.textContent = 'Entrar'; liBtn.disabled = false; }
   document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('nav-uname').textContent = user.email.split('@')[0];
+  document.getElementById('nav-uname').textContent = (user.email||'').split('@')[0];
   const vEl = document.getElementById('e_vendedor');
-  if (vEl && !vEl.value) vEl.value = (user.user_metadata?.nombre || user.email.split('@')[0]);
-  // Asegurar perfil en tabla
+  if (vEl && !vEl.value) vEl.value = (user.displayName || (user.email||'').split('@')[0]);
+  // Asegurar perfil en Firestore
   try {
-    const { data } = await _sb.from('usuarios').select('id').eq('id', user.id).single();
-    if (!data) await _sb.from('usuarios').insert({
-      id: user.id, email: user.email,
-      nombre: user.user_metadata?.nombre || user.email.split('@')[0],
-      rol: currentRole, creado_ms: Date.now()
-    });
+    const docRef = _db.collection('usuarios').doc(uid);
+    const snap = await docRef.get();
+    if (!snap.exists) {
+      await docRef.set({
+        id: uid, email: user.email,
+        nombre: user.displayName || (user.email||'').split('@')[0],
+        rol: currentRole, creado_ms: Date.now(), creado_por: ''
+      });
+    }
   } catch(e) { console.warn('[TQ] perfil:', e.message); }
-  aplicarUISegunRol();
   cargarRefsParaCotizar();
   cargarClientesParaCotizar();
   setTimeout(sincronizarConsecutivo, 1500);
   mostrarCRM();
-  setTimeout(aplicarUISegunRol, 800);
+  requestAnimationFrame(() => setTimeout(aplicarUISegunRol, 0));
 }
 
-/* ── Auth listener ── */
-_sb.auth.onAuthStateChange(async (event, session) => {
-  console.log('[TQ] Auth event:', event);
-  if (event === 'SIGNED_IN')  await iniciarSesionApp(session.user);
-  if (event === 'SIGNED_OUT') mostrarLogin();
-});
-
-/* ── Verificar sesión al cargar ── */
-window.addEventListener('load', async () => {
-  if (location.protocol === 'file:') {
-    const note = document.querySelector('.login-note');
-    if (note) note.innerHTML = '<span style="color:#D72B1F;font-weight:600">⚠️ Abre con Live Server, no desde file://</span>';
-    return;
+/* ── Auth listener Firebase — dispara al cargar y al iniciar/cerrar sesión ── */
+_auth.onAuthStateChanged(async (user) => {
+  console.log('[TQ] Auth state:', user ? 'SIGNED_IN uid:' + user.uid : 'SIGNED_OUT');
+  if (user) {
+    await iniciarSesionApp(user);
+  } else {
+    mostrarLogin();
   }
-  try {
-    // Usar getUser() en vez de getSession() para obtener datos frescos del servidor
-    // incluyendo user_metadata actualizado (rol)
-    const { data: { user }, error } = await _sb.auth.getUser();
-    if (user && !error) {
-      await iniciarSesionApp(user);
-    } else {
-      // Fallback: intentar con getSession
-      const { data: { session } } = await _sb.auth.getSession();
-      if (session?.user) await iniciarSesionApp(session.user);
-      else mostrarLogin();
-    }
-  } catch(e) { console.error('[TQ] getSession:', e); mostrarLogin(); }
 });
 
 /* ── Login ── */
@@ -3261,40 +3425,39 @@ async function doLogin() {
   if (!email || !pass) { err.textContent = 'Completa correo y contraseña.'; return; }
   btn.textContent = 'Ingresando...'; btn.disabled = true;
   try {
-    const { error } = await _sb.auth.signInWithPassword({ email, password: pass });
-    if (error) {
-      btn.textContent = 'Entrar'; btn.disabled = false;
-      err.style.color = 'var(--red)';
-      const msgs = {
-        'Invalid login credentials': 'Correo o contraseña incorrectos.',
-        'Email not confirmed':        'Confirma tu correo primero.',
-        'Too many requests':          'Demasiados intentos. Espera un momento.'
-      };
-      err.textContent = msgs[error.message] || 'Error: ' + error.message;
-    }
+    await _auth.signInWithEmailAndPassword(email, pass);
+    // onAuthStateChanged se encarga del resto automáticamente
   } catch(ex) {
     btn.textContent = 'Entrar'; btn.disabled = false;
     err.style.color = 'var(--red)';
-    err.textContent = 'Error de conexión: ' + (ex.message || ex);
+    const msgs = {
+      'auth/user-not-found':    'Correo o contraseña incorrectos.',
+      'auth/wrong-password':    'Correo o contraseña incorrectos.',
+      'auth/invalid-credential':'Correo o contraseña incorrectos.',
+      'auth/invalid-email':     'Correo no válido.',
+      'auth/too-many-requests': 'Demasiados intentos. Espera un momento.',
+      'auth/user-disabled':     'Esta cuenta está deshabilitada.'
+    };
+    err.textContent = msgs[ex.code] || 'Error: ' + ex.message;
   }
 }
 
 /* ── Logout ── */
 async function doLogout() {
-  try { await _sb.auth.signOut(); } catch(e) { console.warn('[TQ] signOut:', e.message); }
+  try { await _auth.signOut(); } catch(e) { console.warn('[TQ] signOut:', e.message); }
   mostrarLogin();
 }
 
 function mostrarUID() {
   if (!currentUser) return;
-  alert('UID: ' + currentUser.uid + '\nRol: ' + currentRole + '\nMeta: ' + JSON.stringify(currentUser.user_metadata));
+  alert('UID: ' + currentUser.uid + '\nRol: ' + currentRole + '\nEmail: ' + currentUser.email);
 }
 
 async function recargarRol() {
   if (!currentUser) { alert('Sin sesión'); return; }
   try {
-    const { data: { user } } = await _sb.auth.getUser();
-    if (user) { currentRole = leerRol(user); currentUser = {...user, uid: user.id}; aplicarUISegunRol(); alert('Rol: ' + currentRole); }
+    const user = _auth.currentUser;
+    if (user) { currentRole = await leerRol(user); currentUser = {...user, uid: user.uid}; aplicarUISegunRol(); alert('Rol: ' + currentRole); }
   } catch(e) { alert('Error: ' + e.message); }
 }
 
@@ -3331,33 +3494,42 @@ async function guardarCot() {
   }
 
   try {
-    const totalFinal    = Math.round(lastCot.tot || lastCot.total || 0);
-    const subtotalFinal = Math.round(lastCot.subtotal || 0);
-    const ivaFinal      = Math.round(lastCot.iva || 0);
+    // Forzar recálculo para asegurar subtotal/iva/total actualizados
+    const _sub = lastCot.items.reduce((s,i) => s + (i.qty||1) * (i.precio||0) * (1 + (i.mg||0)/100), 0);
+    lastCot.subtotal = _sub;
+    lastCot.iva      = _sub * 0.19;
+    lastCot.total    = _sub + lastCot.iva;
+    lastCot.tot      = lastCot.total;
+
+    const totalFinal    = Math.round(lastCot.total);
+    const subtotalFinal = Math.round(lastCot.subtotal);
+    const ivaFinal      = Math.round(lastCot.iva);
+    // Sanitizar: Firebase Firestore no acepta valores undefined
+    const _s = v => (v === undefined || v === null) ? '' : v;
     const { error: _errC } = await _sb.from('cotizaciones').insert({
-      uid:       currentUser.uid,
-      email:     currentUser.email,
-      titulo:    lastCot.titulo,
-      slug:      lastCot.slug,
-      tipo:      lastCot.tipoRender || 'cable',
-      cliente:   lastCot.emp.cliente,
-      empresa:   lastCot.emp.nom,
-      nit:       lastCot.emp.nit || '',
-      ciudad:    lastCot.emp.ciudad,
-      resp:      lastCot.emp.resp,
-      tel:       lastCot.emp.tel,
-      vendedor:  lastCot.emp.vendedor,
-      dir:       lastCot.emp.dir,
-      consec:    consecActual,
-      vigencia:  lastCot.emp.vigencia||'30',
+      uid:       _s(currentUser.uid),
+      email:     _s(currentUser.email),
+      titulo:    _s(lastCot.titulo),
+      slug:      _s(lastCot.slug),
+      tipo:      _s(lastCot.tipoRender) || 'cable',
+      cliente:   _s(lastCot.emp.cliente),
+      empresa:   _s(lastCot.emp.nom),
+      nit:       _s(lastCot.emp.nit),
+      ciudad:    _s(lastCot.emp.ciudad),
+      resp:      _s(lastCot.emp.resp),
+      tel:       _s(lastCot.emp.tel),
+      vendedor:  _s(lastCot.emp.vendedor),
+      dir:       _s(lastCot.emp.dir),
+      consec:    _s(consecActual),
+      vigencia:  _s(lastCot.emp.vigencia) || '30',
       total:     totalFinal,
       subtotal:  subtotalFinal,
       iva:       ivaFinal,
-      items:     lastCot.items.map(i=>({ref:i.ref,desc:i.desc,qty:i.qty,unit:i.unit,precio:i.precio,mg:i.mg||0,fecha:i.fecha||'',pventa:Math.round((i.precio||0)*(1+(i.mg||0)/100)),totalItem:Math.round((i.precio||0)*(1+(i.mg||0)/100)*(i.qty||1))})),
-      obs:       lastCot.obs || '',
-      rec:       lastCot.rec || '',
-      fechaStr:  lastCot.emp.fecha,
-      fecha_str: lastCot.emp.fecha,
+      items:     lastCot.items.map(i=>({ref:_s(i.ref),desc:_s(i.desc),qty:i.qty||1,unit:_s(i.unit),precio:i.precio||0,mg:i.mg||0,fecha:_s(i.fecha),pventa:Math.round((i.precio||0)*(1+(i.mg||0)/100)),totalItem:Math.round((i.precio||0)*(1+(i.mg||0)/100)*(i.qty||1))})),
+      obs:       _s(lastCot.obs),
+      rec:       _s(lastCot.rec),
+      fechaStr:  _s(lastCot.emp.fecha) || new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'}),
+      fecha_str: _s(lastCot.emp.fecha) || new Date().toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'}),
       creado_ms: Date.now()
     });
     if (_errC) throw _errC;
@@ -3380,9 +3552,10 @@ async function guardarCot() {
     // FIX: resincronizar consecutivo después de guardar
     setTimeout(sincronizarConsecutivo, 500);
   } catch(e) {
-    const errMsg = e.message || JSON.stringify(e);
+    const errMsg = e.message || e.details || e.hint || JSON.stringify(e);
     toast('Error al guardar: '+errMsg,'err');
-    console.error('Supabase error:', e);
+    console.error('Supabase error completo:', e);
+    console.error('Detalle:', JSON.stringify(e, null, 2));
   }
 }
 
@@ -3391,7 +3564,7 @@ function abrirHist() {
   document.getElementById('modal-hist').style.display = 'flex';
   // Si es admin y no tenemos usuarios cargados, cargarlos primero
   if (currentRole === 'admin' && Object.keys(dashUsuarios).length === 0) {
-_sb.from('usuarios').select('*').then(({data}) => { (data||[]).forEach(d => { dashUsuarios[d.id] = d; }); cargarHist(); }).catch(() => cargarHist());
+_db.collection('usuarios').get().then(snap => { snap.docs.forEach(d => { dashUsuarios[d.id] = {...d.data(), id: d.id}; }); cargarHist(); }).catch(() => cargarHist());
   } else {
     cargarHist();
   }
@@ -3827,20 +4000,22 @@ async function crearUsuario() {
   if (!nombre||!email||!pass) { status.style.color='var(--red)'; status.textContent='Completa todos los campos.'; return; }
   if (pass.length<6) { status.style.color='var(--red)'; status.textContent='Mínimo 6 caracteres.'; return; }
   status.style.color='var(--text2)'; status.textContent='⏳ Creando usuario...';
-  // Guardar sesión admin antes del signUp
-  let tokenAdmin=null, refreshAdmin=null;
-  try { const {data:s} = await _sb.auth.getSession(); tokenAdmin=s?.session?.access_token; refreshAdmin=s?.session?.refresh_token; } catch(_){}
+  // Guardar admin actual para restaurar después
+  const adminUser = _auth.currentUser;
   try {
-    const { data: signUpData, error: signUpErr } = await _sb.auth.signUp({
-      email, password: pass, options: { data: { rol, nombre } }
+    // Crear usuario secundario — en Firebase esto hace sign-in automático del nuevo usuario
+    // Usamos una segunda instancia temporal para evitar cerrar sesión del admin
+    const secondApp = firebase.initializeApp(firebaseConfig, 'secondary_' + Date.now());
+    const secondAuth = secondApp.auth();
+    const cred = await secondAuth.createUserWithEmailAndPassword(email, pass);
+    const newUid = cred.user.uid;
+    await secondAuth.signOut();
+    await secondApp.delete();
+    // Insertar perfil en Firestore (el admin sigue autenticado)
+    await _db.collection('usuarios').doc(newUid).set({
+      id: newUid, email, nombre, rol,
+      creado_ms: Date.now(), creado_por: currentUser?.uid||''
     });
-    if (signUpErr) throw new Error(signUpErr.message);
-    const newUid = signUpData.user?.id;
-    if (!newUid) throw new Error('No se pudo obtener el UID.');
-    // Restaurar sesión admin
-    if (tokenAdmin && refreshAdmin) await _sb.auth.setSession({ access_token: tokenAdmin, refresh_token: refreshAdmin });
-    // Insertar perfil
-    await _sb.from('usuarios').insert({ id: newUid, email, nombre, rol, creado_ms: Date.now(), creado_por: currentUser?.uid||'' });
     status.style.color='#2D6A1F';
     status.textContent=`✅ Usuario "${nombre}" creado como ${rol}.`;
     ['nu-nombre','nu-email','nu-pass'].forEach(id=>document.getElementById(id).value='');
@@ -3848,7 +4023,6 @@ async function crearUsuario() {
     toast(`✓ Usuario ${nombre} creado`,'ok');
     cargarUsuarios();
   } catch(e) {
-    if (tokenAdmin && refreshAdmin) try { await _sb.auth.setSession({ access_token: tokenAdmin, refresh_token: refreshAdmin }); } catch(_){}
     status.style.color='var(--red)'; status.textContent='❌ '+e.message;
   }
 }
@@ -5017,12 +5191,14 @@ async function cotEditGuardar() {
   const fechaHoy = `${hoy.getDate().toString().padStart(2,'0')}/${(hoy.getMonth()+1).toString().padStart(2,'0')}/${hoy.getFullYear()}`;
   cotEditDoc.fechaStr = cotEditDoc.fechaStr || fechaHoy;
   try {
+    const _s2 = v => (v === undefined || v === null) ? '' : v;
     await _sb.from('cotizaciones').update({
-      cliente:cotEditDoc.cliente, empresa:cotEditDoc.empresa, ciudad:cotEditDoc.ciudad,
-      vigencia:cotEditDoc.vigencia, items:cotEditDoc.items,
-      subtotal:cotEditDoc.subtotal, iva:cotEditDoc.iva, total:cotEditDoc.total,
-      fecha_str:cotEditDoc.fechaStr,
-      estado: cotEditDoc.estado || null,
+      cliente: _s2(cotEditDoc.cliente), empresa: _s2(cotEditDoc.empresa), ciudad: _s2(cotEditDoc.ciudad),
+      vigencia: _s2(cotEditDoc.vigencia),
+      items: (cotEditDoc.items||[]).map(i=>({ref:_s2(i.ref),desc:_s2(i.desc),qty:i.qty||1,unit:_s2(i.unit),precio:i.precio||0,mg:i.mg||0,fecha:_s2(i.fecha),pventa:i.pventa||0,totalItem:i.totalItem||0})),
+      subtotal: cotEditDoc.subtotal||0, iva: cotEditDoc.iva||0, total: cotEditDoc.total||0,
+      fecha_str: _s2(cotEditDoc.fechaStr),
+      estado: cotEditDoc.estado || '',
       seguimientos: cotEditDoc.seguimientos || []
     }).eq('id', cotEditDoc.id);
     toast('✓ Cotización actualizada','ok');
