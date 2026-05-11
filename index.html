@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root{
@@ -605,6 +606,74 @@ footer strong{color:var(--text2)}
   .login-f input{font-size:16px} /* evita zoom en iOS al hacer foco */
 }
 
+
+/* =====================================================
+   NUEVA PANTALLA DE INICIO — KPIs + Charts + Recientes
+   ===================================================== */
+.main-tabs-bar{background:var(--white);border-bottom:2px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;position:sticky;top:56px;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.main-tabs-bar::-webkit-scrollbar{display:none}
+.main-tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s;flex-shrink:0}
+.main-tab:hover{color:var(--text);background:var(--bg)}
+.main-tab.active{color:var(--red);border-bottom-color:var(--red);font-weight:700;background:#fff}
+.vista{display:none}.vista.active{display:block}
+
+/* KPIs */
+.home-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.kpi-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.25rem;text-align:center;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s}
+.kpi-card:hover{transform:translateY(-2px);border-color:var(--red)}
+.kpi-icon{font-size:24px;margin-bottom:6px}
+.kpi-val{font-size:26px;font-weight:800;color:var(--text);line-height:1.1}
+.kpi-label{font-size:12px;font-weight:600;color:var(--text2);margin-top:4px}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* Accesos rápidos */
+.home-acceso-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.5rem}
+.acceso-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center;cursor:pointer;transition:all .15s;box-shadow:var(--shadow)}
+.acceso-card:hover{border-color:var(--red);transform:translateY(-2px);box-shadow:0 4px 16px rgba(215,43,31,.1)}
+.acceso-icon{font-size:24px;margin-bottom:6px}
+.acceso-title{font-size:13px;font-weight:600;color:var(--text)}
+.acceso-desc{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* Paneles home */
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem}
+.home-panel{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
+.home-panel-hdr{padding:.75rem 1.25rem;border-bottom:1px solid var(--border);background:#FAFAFA;display:flex;justify-content:space-between;align-items:center}
+.home-panel-title{font-size:13px;font-weight:600;color:var(--text)}
+.home-panel-body{padding:.75rem 1rem;max-height:280px;overflow-y:auto}
+
+/* Items recientes */
+.rec-item{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);gap:10px}
+.rec-item:last-child{border-bottom:none}
+.rec-info{flex:1;min-width:0}
+.rec-titulo{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-meta{font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-total{font-size:13px;font-weight:700;color:var(--red);white-space:nowrap}
+.rec-empty{text-align:center;color:var(--text3);font-size:13px;padding:1.5rem 0}
+.estado-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.estado-activo{background:#DCFCE7;color:#15803D}
+.estado-prospecto{background:#FEF9C3;color:#854D0E}
+.estado-inactivo{background:#F1F5F9;color:#64748B}
+
+/* Responsive home */
+@media(max-width:900px){
+  .home-kpi-grid{grid-template-columns:1fr 1fr}
+  .home-acceso-grid{grid-template-columns:1fr 1fr 1fr}
+  .home-grid{grid-template-columns:1fr}
+  .main-tabs-bar{top:auto;position:relative}
+  .crm-topbar{flex-direction:column;gap:8px}
+  .crm-actions{width:100%;flex-wrap:wrap}
+  #chart-analisis-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:600px){
+  #chart-analisis-grid{grid-template-columns:1fr!important}
+  .home-acceso-grid{grid-template-columns:1fr 1fr 1fr}
+}
+@media(max-width:480px){
+  .home-acceso-grid{grid-template-columns:1fr 1fr}
+  .home-kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi-val{font-size:20px}
+}
+
 </style>
 </head>
 <body>
@@ -984,6 +1053,74 @@ footer strong{color:var(--text2)}
   .login-f input{font-size:16px} /* evita zoom en iOS al hacer foco */
 }
 
+
+/* =====================================================
+   NUEVA PANTALLA DE INICIO — KPIs + Charts + Recientes
+   ===================================================== */
+.main-tabs-bar{background:var(--white);border-bottom:2px solid var(--border);display:flex;overflow-x:auto;scrollbar-width:none;position:sticky;top:56px;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.main-tabs-bar::-webkit-scrollbar{display:none}
+.main-tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--text2);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s;flex-shrink:0}
+.main-tab:hover{color:var(--text);background:var(--bg)}
+.main-tab.active{color:var(--red);border-bottom-color:var(--red);font-weight:700;background:#fff}
+.vista{display:none}.vista.active{display:block}
+
+/* KPIs */
+.home-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.kpi-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);padding:1.25rem;text-align:center;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s}
+.kpi-card:hover{transform:translateY(-2px);border-color:var(--red)}
+.kpi-icon{font-size:24px;margin-bottom:6px}
+.kpi-val{font-size:26px;font-weight:800;color:var(--text);line-height:1.1}
+.kpi-label{font-size:12px;font-weight:600;color:var(--text2);margin-top:4px}
+.kpi-sub{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* Accesos rápidos */
+.home-acceso-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:1.5rem}
+.acceso-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;text-align:center;cursor:pointer;transition:all .15s;box-shadow:var(--shadow)}
+.acceso-card:hover{border-color:var(--red);transform:translateY(-2px);box-shadow:0 4px 16px rgba(215,43,31,.1)}
+.acceso-icon{font-size:24px;margin-bottom:6px}
+.acceso-title{font-size:13px;font-weight:600;color:var(--text)}
+.acceso-desc{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* Paneles home */
+.home-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-top:1.5rem}
+.home-panel{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
+.home-panel-hdr{padding:.75rem 1.25rem;border-bottom:1px solid var(--border);background:#FAFAFA;display:flex;justify-content:space-between;align-items:center}
+.home-panel-title{font-size:13px;font-weight:600;color:var(--text)}
+.home-panel-body{padding:.75rem 1rem;max-height:280px;overflow-y:auto}
+
+/* Items recientes */
+.rec-item{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--border);gap:10px}
+.rec-item:last-child{border-bottom:none}
+.rec-info{flex:1;min-width:0}
+.rec-titulo{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-meta{font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec-total{font-size:13px;font-weight:700;color:var(--red);white-space:nowrap}
+.rec-empty{text-align:center;color:var(--text3);font-size:13px;padding:1.5rem 0}
+.estado-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.estado-activo{background:#DCFCE7;color:#15803D}
+.estado-prospecto{background:#FEF9C3;color:#854D0E}
+.estado-inactivo{background:#F1F5F9;color:#64748B}
+
+/* Responsive home */
+@media(max-width:900px){
+  .home-kpi-grid{grid-template-columns:1fr 1fr}
+  .home-acceso-grid{grid-template-columns:1fr 1fr 1fr}
+  .home-grid{grid-template-columns:1fr}
+  .main-tabs-bar{top:auto;position:relative}
+  .crm-topbar{flex-direction:column;gap:8px}
+  .crm-actions{width:100%;flex-wrap:wrap}
+  #chart-analisis-grid{grid-template-columns:1fr!important}
+}
+@media(max-width:600px){
+  #chart-analisis-grid{grid-template-columns:1fr!important}
+  .home-acceso-grid{grid-template-columns:1fr 1fr 1fr}
+}
+@media(max-width:480px){
+  .home-acceso-grid{grid-template-columns:1fr 1fr}
+  .home-kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi-val{font-size:20px}
+}
+
 </style>
 <!-- modal usuarios integrado en panel admin -->
 
@@ -1069,130 +1206,147 @@ footer strong{color:var(--text2)}
     <div class="nav-logo">TQ</div>
     <div>
       <div class="nav-title">TeleQuoter</div>
-      <div class="nav-sub">Cotizador de Telecomunicaciones</div>
+      <div class="nav-sub">CRM · Cotizador</div>
     </div>
   </div>
   <div class="nav-user">
     <span class="nav-user-name" id="nav-uname"></span>
-    <button class="nav-btn" id="btn-dash" style="display:none" onclick="abrirDash()">📊 Dashboard</button>
-    <button class="nav-btn" onclick="abrirHist()">📋 Historial</button>
-    <button class="nav-btn" id="btn-admin-ref" style="display:none;background:linear-gradient(135deg,#D72B1F,#A01810);border-color:#D72B1F;font-weight:700;letter-spacing:.03em;padding:6px 16px" onclick="abrirAdmin()">⚙️ Administración</button>
     <button class="nav-btn" id="btn-uid-info" style="display:none;background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.2);font-size:11px" onclick="mostrarUID()" title="Ver UID de Firebase">🔍 UID</button>
     <button class="nav-btn" onclick="doLogout()">Salir</button>
   </div>
 </nav>
+<!-- BARRA DE NAVEGACIÓN POR PESTAÑAS -->
+<div class="main-tabs-bar" id="main-tabs-bar" style="display:none">
+  <button class="main-tab active" id="ntab-home"     onclick="irVista('home')">🏠 Inicio</button>
+  <button class="main-tab"        id="ntab-clientes" onclick="irVista('clientes')">🏢 Clientes</button>
+  <button class="main-tab"        id="ntab-cot"      onclick="irVista('cot')">📋 Cotizador</button>
+  <button class="main-tab"        id="ntab-hist"     onclick="irVista('hist')">📂 Historial</button>
+  <button class="main-tab"        id="ntab-buscar"   onclick="irVista('buscar')">🔍 Buscar</button>
+  <button class="main-tab" id="ntab-admin" style="display:none" onclick="irVista('admin')">⚙️ Admin</button>
+</div>
 
 <!-- ===== CRM HOME ===== -->
-<div id="crm-home">
-<div class="crm-wrap">
+<div id="crm-home" class="vista active">
+<div class="container">
 
-  <!-- TOP BAR -->
-  <div class="crm-topbar">
+  <!-- BARRA DE BÚSQUEDA GLOBAL + BOTONES CRM -->
+  <div class="crm-topbar" style="margin-top:1.25rem">
     <div class="crm-search-wrap">
       <span class="crm-search-icon">🔍</span>
       <input class="crm-search" id="crm-q" placeholder="Buscar cliente, proyecto o cotización..." oninput="crmBuscarGlobal()"/>
       <div id="crm-search-results" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1.5px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);z-index:500;max-height:320px;overflow-y:auto"></div>
     </div>
-    <div class="crm-actions">
-      <button class="crm-action-btn red admin-only" onclick="abrirAdmin();setTimeout(()=>swMainAdmin('users',document.getElementById('admin-main-users')),80)">👥 Usuario</button>
-      <button class="crm-action-btn dark admin-only" onclick="abrirAdmin();setTimeout(()=>swMainAdmin('clientes',document.getElementById('admin-main-clientes')),80)">🏢 Cliente</button>
-      <button class="crm-action-btn gray admin-only" onclick="abrirAdmin();setTimeout(()=>swMainAdmin('refs',document.getElementById('admin-main-refs')),80)">📦 Refs</button>
-      <button class="crm-action-btn red" onclick="crmIrCotizador()">✏️ Nueva cotización</button>
+    <div class="crm-actions" style="display:none">
+      <button class="crm-action-btn gray admin-only" id="btn-admin-ref" style="display:none" onclick="irVista('admin')">⚙️ Admin</button>
     </div>
   </div>
 
-  <!-- KPI ROW -->
-  <div class="crm-stats" id="crm-kpis">
-    <div class="crm-stat red"><div class="crm-stat-val" id="crm-stat-mes">—</div><div class="crm-stat-lbl">Cotizaciones este mes</div></div>
-    <div class="crm-stat"><div class="crm-stat-val" id="crm-stat-valor-mes">—</div><div class="crm-stat-lbl">Valor mes (COP)</div></div>
-    <div class="crm-stat"><div class="crm-stat-val" id="crm-stat-clientes">—</div><div class="crm-stat-lbl">Clientes totales</div></div>
-    <div class="crm-stat"><div class="crm-stat-val" id="crm-stat-hot">—</div><div class="crm-stat-lbl">🔥 Activos</div></div>
-    <div class="crm-stat"><div class="crm-stat-val" id="crm-stat-vencer">—</div><div class="crm-stat-lbl">⚠️ Por vencer</div></div>
-    <div class="crm-stat"><div class="crm-stat-val" id="crm-stat-valor">—</div><div class="crm-stat-lbl">Total acumulado</div></div>
+  <!-- KPIs -->
+  <div class="home-kpi-grid" id="home-kpis">
+    <div class="kpi-card" onclick="irVista('hist')">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-val" id="kpi-total">—</div>
+      <div class="kpi-label">Total cotizado</div>
+      <div class="kpi-sub">Este mes</div>
+    </div>
+    <div class="kpi-card" onclick="irVista('hist')">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-val" id="kpi-cots">—</div>
+      <div class="kpi-label">Cotizaciones</div>
+      <div class="kpi-sub">Este mes</div>
+    </div>
+    <div class="kpi-card" onclick="irVista('clientes')">
+      <div class="kpi-icon">🏢</div>
+      <div class="kpi-val" id="kpi-cli">—</div>
+      <div class="kpi-label">Clientes activos</div>
+      <div class="kpi-sub">En total</div>
+    </div>
+    <div class="kpi-card" onclick="irVista('hist')">
+      <div class="kpi-icon">📈</div>
+      <div class="kpi-val" id="kpi-prom">—</div>
+      <div class="kpi-label">Promedio cotización</div>
+      <div class="kpi-sub">Este mes</div>
+    </div>
   </div>
 
-  <!-- MAIN GRID: 2 cols -->
-  <div style="display:grid;grid-template-columns:1fr 380px;gap:16px;margin-bottom:1.5rem" id="crm-main-grid">
+  <!-- Accesos rápidos -->
+  <div class="home-acceso-grid">
+    <div class="acceso-card" onclick="irVista('cot')">
+      <div class="acceso-icon">📋</div>
+      <div class="acceso-title">Nueva cotización</div>
+      <div class="acceso-desc">Cableado, fibra o CCTV</div>
+    </div>
+    <div class="acceso-card" onclick="irVista('clientes')">
+      <div class="acceso-icon">➕</div>
+      <div class="acceso-title">Nuevo cliente</div>
+      <div class="acceso-desc">Crear ficha de cliente</div>
+    </div>
+    <div class="acceso-card" onclick="irVista('hist')">
+      <div class="acceso-icon">📂</div>
+      <div class="acceso-title">Ver historial</div>
+      <div class="acceso-desc">Todas las cotizaciones</div>
+    </div>
+    <div class="acceso-card" onclick="irVista('buscar')">
+      <div class="acceso-icon">🔍</div>
+      <div class="acceso-title">Buscar</div>
+      <div class="acceso-desc">Clientes, cotiz., ref.</div>
+    </div>
+    <div class="acceso-card admin-only" id="acceso-admin" style="display:none" onclick="irVista('admin')">
+      <div class="acceso-icon">⚙️</div>
+      <div class="acceso-title">Administración</div>
+      <div class="acceso-desc">Usuarios, referencias</div>
+    </div>
+  </div>
 
-    <!-- LEFT COLUMN -->
-    <div style="display:flex;flex-direction:column;gap:16px">
-
-      <!-- RECORDATORIOS / ALERTAS -->
-      <div class="crm-panel">
-        <div class="crm-panel-header">⚠️ Recordatorios y alertas</div>
-        <div id="crm-alertas"><div class="crm-empty-sm">Cargando...</div></div>
-      </div>
-
-      <!-- ACTIVIDAD RECIENTE -->
-      <div class="crm-panel">
-        <div class="crm-panel-header" style="display:flex;justify-content:space-between;align-items:center">
-          <span>🕐 Actividad reciente</span>
-          <span style="font-size:11px;color:var(--text3);font-weight:400">Últimas cotizaciones</span>
+  <!-- Gráficos de análisis -->
+  <div style="margin-bottom:1.5rem">
+    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+      📊 Análisis de productos y clientes
+      <span style="font-size:11px;color:var(--text3);font-weight:400">— qué ofrecer según comportamiento</span>
+    </div>
+    <div id="chart-analisis-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+      <div class="home-panel">
+        <div class="home-panel-hdr"><span class="home-panel-title">🔌 Productos más cotizados</span></div>
+        <div style="padding:1rem">
+          <canvas id="chart-productos" height="180"></canvas>
+          <div id="chart-productos-legend" style="margin-top:.75rem;font-size:11px"></div>
         </div>
-        <div id="crm-actividad"><div class="crm-empty-sm">Cargando...</div></div>
       </div>
-
-      <!-- TOP CLIENTES -->
-      <div class="crm-panel">
-        <div class="crm-panel-header">🏆 Top clientes por valor cotizado</div>
-        <div id="crm-top-clientes"><div class="crm-empty-sm">Cargando...</div></div>
-      </div>
-
-    </div>
-
-    <!-- RIGHT COLUMN -->
-    <div style="display:flex;flex-direction:column;gap:16px">
-
-      <!-- MINI CALENDARIO -->
-      <div class="crm-panel">
-        <div class="crm-panel-header" style="display:flex;justify-content:space-between;align-items:center">
-          <span>📅 Calendario</span>
-          <div style="display:flex;gap:6px">
-            <button onclick="calPrev()" style="background:none;border:1px solid var(--border);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px">‹</button>
-            <button onclick="calNext()" style="background:none;border:1px solid var(--border);border-radius:6px;width:24px;height:24px;cursor:pointer;font-size:12px">›</button>
-          </div>
+      <div class="home-panel">
+        <div class="home-panel-hdr"><span class="home-panel-title">📈 Cotizaciones por mes</span></div>
+        <div style="padding:1rem">
+          <canvas id="chart-meses" height="180"></canvas>
         </div>
-        <div id="crm-cal-titulo" style="text-align:center;font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px"></div>
-        <div id="crm-calendario"></div>
-        <div id="crm-cal-eventos" style="margin-top:10px;font-size:11px"></div>
       </div>
-
-      <!-- TOP REFERENCIAS -->
-      <div class="crm-panel">
-        <div class="crm-panel-header">📦 Referencias más cotizadas</div>
-        <div id="crm-top-refs"><div class="crm-empty-sm">Cargando...</div></div>
+      <div class="home-panel" style="border-left:3px solid var(--red)">
+        <div class="home-panel-hdr"><span class="home-panel-title">💡 Qué ofrecer</span></div>
+        <div style="padding:1rem;font-size:12px" id="chart-recomendaciones">
+          <div class="rec-empty">Cargando análisis...</div>
+        </div>
       </div>
-
-      <!-- RANKING VENDEDORES (solo admin) -->
-      <div class="crm-panel admin-only" id="crm-panel-vendedores" style="display:none">
-        <div class="crm-panel-header">🥇 Ranking vendedores</div>
-        <div id="crm-ranking-vendedores"><div class="crm-empty-sm">Cargando...</div></div>
-      </div>
-
     </div>
   </div>
 
-  <!-- CLIENTES CRM GRID -->
-  <div class="crm-panel" style="margin-bottom:1.5rem">
-    <div class="crm-panel-header" style="display:flex;justify-content:space-between;align-items:center">
-      <span>🏢 Clientes</span>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="crm-filtro-tipo" onchange="crmFiltrar()" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;outline:none">
-          <option value="">Todos</option>
-          <option value="hot">🔥 Activos</option>
-          <option value="warm">🌡️ Tibios</option>
-          <option value="cold">❄️ Inactivos</option>
-          <option value="new">✨ Nuevos</option>
-        </select>
+  <!-- Recientes -->
+  <div class="home-grid">
+    <div class="home-panel">
+      <div class="home-panel-hdr">
+        <span class="home-panel-title">📋 Cotizaciones recientes</span>
+        <span style="font-size:11px;color:var(--red);cursor:pointer" onclick="irVista('hist')">Ver todas →</span>
       </div>
+      <div class="home-panel-body" id="home-cots-recientes"><div class="rec-empty">Cargando...</div></div>
     </div>
-    <div id="crm-grid" class="crm-grid" style="margin-top:1rem">
-      <div class="crm-empty">⏳ Cargando clientes...</div>
+    <div class="home-panel">
+      <div class="home-panel-hdr">
+        <span class="home-panel-title">🏢 Clientes recientes</span>
+        <span style="font-size:11px;color:var(--red);cursor:pointer" onclick="irVista('clientes')">Ver todos →</span>
+      </div>
+      <div class="home-panel-body" id="home-cli-recientes"><div class="rec-empty">Cargando...</div></div>
     </div>
   </div>
-
 </div>
 </div>
+
 
 <!-- MODAL EDICION COTIZACION -->
 <div id="modal-cot-edit" onclick="if(event.target===this)cerrarCotEdit()">
@@ -1805,33 +1959,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function sincronizarConsecutivo() {
+  // Lee TODAS las cotizaciones (de todos los usuarios) para encontrar el consecutivo global más alto
+  // y asignar siempre el siguiente número disponible, sin importar el cliente
   try {
-    const { data: _sc } = await _sb.from('cotizaciones').select('consec').eq('uid', currentUser.uid).limit(500);
-    if (_sc && _sc.length > 0) {
-      // FIX: extraer solo la parte numérica respetando el prefijo (ej: "COT-005" → 5)
-      let maxNum = 0;
-      let prefix = 'COT-';
-      let padLen = 3;
-      _sc.forEach(d => {
-        const consec = d.consec || '';
-        const match = consec.match(/^(.*?)(\d+)$/);
-        if (match) {
-          const num = parseInt(match[2], 10);
-          if (num > maxNum) {
-            maxNum = num;
-            prefix = match[1];
-            padLen = match[2].length;
-          }
-        }
-      });
-      const nextNum = String(maxNum + 1).padStart(padLen, '0');
-      const el = document.getElementById('e_consec');
-      // Solo actualizar si el campo actual es menor al siguiente
-      if (el) {
-        const currentMatch = el.value.match(/^(.*?)(\d+)$/);
-        const currentNum = currentMatch ? parseInt(currentMatch[2], 10) : 0;
-        if (currentNum <= maxNum) el.value = prefix + nextNum;
+    const snap = await _db.collection('cotizaciones').get();
+    let maxNum = 0;
+    snap.docs.forEach(d => {
+      const consec = (d.data().consec || '');
+      const match = consec.match(/(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNum) maxNum = num;
       }
+    });
+    const nextNum = String(maxNum + 1).padStart(3, '0');
+    const el = document.getElementById('e_consec');
+    if (el) {
+      el.value = nextNum;
+      console.log('[TQ] Consecutivo → COT-' + nextNum + ' (máximo encontrado: ' + maxNum + ')');
     }
   } catch(e) { console.warn('No se pudo sincronizar consecutivo:', e.message); }
 }
@@ -3618,13 +3763,20 @@ function aplicarUISegunRol() {
     return;
   }
   const esAdmin = currentRole === 'admin';
-  btnAdmin.style.display = esAdmin ? 'block' : 'none';
+  // Botón admin en barra de acciones (home)
+  btnAdmin.style.display = esAdmin ? 'inline-block' : 'none';
+  // UID en nav
   const btnUid = document.getElementById('btn-uid-info');
   if (btnUid) btnUid.style.display = esAdmin ? 'block' : 'none';
-  const btnDash = document.getElementById('btn-dash');
-  if (btnDash) btnDash.style.display = 'block';
-  document.querySelectorAll('.crm-action-btn.admin-only')
-    .forEach(b => b.style.display = esAdmin ? 'inline-block' : 'none');
+  // Tab Admin en barra de tabs
+  const ntabAdmin = document.getElementById('ntab-admin');
+  if (ntabAdmin) ntabAdmin.style.display = esAdmin ? 'block' : 'none';
+  // Acceso rápido Admin en home
+  const accesoAdmin = document.getElementById('acceso-admin');
+  if (accesoAdmin) accesoAdmin.style.display = esAdmin ? 'block' : 'none';
+  // Todos los elementos admin-only
+  document.querySelectorAll('.crm-action-btn.admin-only, .admin-only')
+    .forEach(b => { if (b.id !== 'acceso-admin') b.style.display = esAdmin ? 'inline-block' : 'none'; });
   const vp = document.getElementById('crm-panel-vendedores');
   if (vp) vp.style.display = esAdmin ? 'block' : 'none';
   console.log('[TQ] UI → esAdmin:', esAdmin);
@@ -4728,6 +4880,8 @@ function seleccionarClienteCot(id) {
   // Cerrar dropdown y limpiar buscador
   document.getElementById('cli-dropdown').style.display = 'none';
   document.getElementById('cli-search-cot').value = c.empresa;
+  // AUTO-ASIGNAR consecutivo: sincronizar con Firestore para obtener el siguiente número
+  sincronizarConsecutivo();
   toast('✓ Cliente cargado: '+c.empresa,'ok');
 }
 
@@ -4835,29 +4989,41 @@ let cotEditActual = null;
 let calFecha = new Date();
 
 function mostrarCRM() {
+  // Mostrar barra de tabs
+  const tabsBar = document.getElementById('main-tabs-bar');
+  if (tabsBar) tabsBar.style.display = 'flex';
+  // Mostrar pantalla de inicio
   document.getElementById('crm-home').style.display = 'block';
   document.getElementById('cotizador-container').style.display = 'none';
+  // Mostrar admin en tabs si es admin
+  if (currentRole === 'admin') {
+    const ntabAdmin = document.getElementById('ntab-admin');
+    if (ntabAdmin) ntabAdmin.style.display = 'block';
+    const accesoAdmin = document.getElementById('acceso-admin');
+    if (accesoAdmin) accesoAdmin.style.display = 'block';
+  }
+  // Cargar datos del CRM (para alertas, calendario, etc.)
   if (!crmLoaded) crmCargar();
   else crmRenderCalendario();
+  // Cargar home con KPIs y gráficos
+  setTimeout(cargarHome, 300);
 }
 
 function crmIrCotizador() {
   document.getElementById('crm-home').style.display = 'none';
   document.getElementById('cotizador-container').style.display = 'block';
+  // Activar tab cotizador
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('ntab-cot');
+  if (tab) tab.classList.add('active');
 }
 
-// Botón Inicio en navbar
-(function() {
-  const nav = document.querySelector('.nav-user');
-  if (nav) {
-    const btn = document.createElement('button');
-    btn.className = 'nav-btn';
-    btn.style.cssText = 'background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.4);font-weight:600';
-    btn.textContent = '🏠 Inicio';
-    btn.onclick = mostrarCRM;
-    nav.insertBefore(btn, nav.firstChild);
-  }
-})();
+function mostrarCotizador() {
+  document.getElementById('crm-home').style.display = 'none';
+  document.getElementById('cotizador-container').style.display = 'block';
+}
+
+// Navegación ahora manejada por tabs bar);
 
 /* ---- CARGAR DATOS ---- */
 async function crmCargar() {
@@ -5531,6 +5697,215 @@ async function cotEditAgregarSeguimiento() {
 }
 
 function cerrarCotEdit() { document.getElementById('modal-cot-edit').classList.remove('open'); cotEditDoc=null; }
+
+/* ============================================================
+   NAVEGACIÓN POR VISTAS (Nueva pantalla de inicio)
+   ============================================================ */
+let vistaActual = 'home';
+let chartProductos = null;
+let chartMeses = null;
+
+function irVista(vista) {
+  vistaActual = vista;
+  // Actualizar tabs activos
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.getElementById('ntab-' + vista);
+  if (tab) tab.classList.add('active');
+
+  // Ocultar todo primero
+  const crm = document.getElementById('crm-home');
+  const cot = document.getElementById('cotizador-container');
+  if (crm) crm.style.display = 'none';
+  if (cot) cot.style.display = 'none';
+
+  if (vista === 'home') {
+    if (crm) crm.style.display = 'block';
+    if (cot) cot.style.display = 'none';
+    cargarHome();
+  } else if (vista === 'cot') {
+    if (crm) crm.style.display = 'none';
+    if (cot) cot.style.display = 'block';
+  } else if (vista === 'hist') {
+    if (crm) crm.style.display = 'block';
+    if (cot) cot.style.display = 'none';
+    abrirHist();
+  } else if (vista === 'clientes') {
+    if (crm) crm.style.display = 'block';
+    if (cot) cot.style.display = 'none';
+    // Abrir admin en pestaña clientes
+    abrirAdmin(); swMainAdmin('clientes', document.getElementById('admin-main-clientes'));
+  } else if (vista === 'buscar') {
+    if (crm) crm.style.display = 'block';
+    if (cot) cot.style.display = 'none';
+    abrirBuscar();
+  } else if (vista === 'admin') {
+    if (crm) crm.style.display = 'block';
+    if (cot) cot.style.display = 'none';
+    abrirAdmin();
+  }
+}
+
+async function cargarHome() {
+  try {
+    const snap = currentRole === 'admin'
+      ? await _db.collection('cotizaciones').get()
+      : await _db.collection('cotizaciones').where('uid','==',currentUser.uid).get();
+    const cots = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.creado_ms||0)-(a.creado_ms||0));
+
+    // KPIs del mes
+    const ahora = new Date(); const mes = ahora.getMonth(); const anio = ahora.getFullYear();
+    const delMes = cots.filter(c => {
+      const d = new Date(c.creado_ms||0);
+      return d.getMonth()===mes && d.getFullYear()===anio;
+    });
+    const totalMes = delMes.reduce((s,c)=>s+(c.total||0),0);
+    const promMes = delMes.length ? Math.round(totalMes/delMes.length) : 0;
+
+    const fmtK = v => v>=1000000 ? '$'+(v/1000000).toFixed(1)+'M' : v>=1000 ? '$'+(v/1000).toFixed(0)+'K' : fmt(v);
+    document.getElementById('kpi-total').textContent = fmtK(totalMes);
+    document.getElementById('kpi-cots').textContent = delMes.length;
+    document.getElementById('kpi-prom').textContent = fmtK(promMes);
+
+    // Gráfico 1: Productos más cotizados
+    const tipos = {cable:0, fibra:0, cctv:0};
+    const tipoTotal = {cable:0, fibra:0, cctv:0};
+    cots.forEach(c => {
+      const t = (c.tipo||'cable').toLowerCase();
+      if (tipos[t]!==undefined) { tipos[t]++; tipoTotal[t]+=(c.total||0); }
+    });
+    renderChartProductos(tipos, tipoTotal);
+
+    // Gráfico 2: por mes (últimos 6 meses)
+    const meses6 = [];
+    for (let i=5; i>=0; i--) {
+      const d = new Date(anio, mes-i, 1);
+      const label = d.toLocaleDateString('es-CO',{month:'short'});
+      const cotsDelMes = cots.filter(c => {
+        const cd = new Date(c.creado_ms||0);
+        return cd.getMonth()===d.getMonth() && cd.getFullYear()===d.getFullYear();
+      });
+      meses6.push({ label, count: cotsDelMes.length, total: cotsDelMes.reduce((s,c)=>s+(c.total||0),0) });
+    }
+    renderChartMeses(meses6);
+    renderRecomendacionesHome(tipos, tipoTotal, cots);
+
+    // Cotizaciones recientes
+    const recEl = document.getElementById('home-cots-recientes');
+    const recientes = cots.slice(0,8);
+    recEl.innerHTML = recientes.length ? recientes.map(c=>`
+      <div class="rec-item" onclick="irVista('hist')" style="cursor:pointer">
+        <div class="rec-info">
+          <div class="rec-titulo">${c.consec||'—'} · ${c.cliente||'Sin cliente'}</div>
+          <div class="rec-meta">${c.vendedor||c.email||'—'} · ${c.fechaStr||'—'}</div>
+        </div>
+        <div class="rec-total">${fmtK(c.total||0)}</div>
+      </div>`).join('') : '<div class="rec-empty">No hay cotizaciones aún</div>';
+  } catch(e) { console.warn('Home cots:', e.message); }
+
+  try {
+    const snapCli = currentRole === 'admin'
+      ? await _db.collection('clientes').get()
+      : await _db.collection('clientes').where('uid','==',currentUser.uid).get();
+    const clis = snapCli.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.creado_ms||0)-(a.creado_ms||0));
+    document.getElementById('kpi-cli').textContent = clis.length;
+    const cliEl = document.getElementById('home-cli-recientes');
+    cliEl.innerHTML = clis.slice(0,8).length ? clis.slice(0,8).map(c=>`
+      <div class="rec-item" style="cursor:pointer">
+        <div class="rec-info">
+          <div class="rec-titulo">${c.empresa||c.nombre||'Sin nombre'}</div>
+          <div class="rec-meta">${c.ciudad||'—'} · ${c.sector||'—'}</div>
+        </div>
+        <span class="estado-badge estado-${c.estado||'prospecto'}">${c.estado||'prospecto'}</span>
+      </div>`).join('') : '<div class="rec-empty">No hay clientes aún</div>';
+  } catch(e) { console.warn('Home clis:', e.message); }
+}
+
+function renderChartProductos(tipos, tipoTotal) {
+  const ctx = document.getElementById('chart-productos');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (chartProductos) { chartProductos.destroy(); chartProductos = null; }
+  const labels = ['🔌 Cableado','📡 Fibra','📹 CCTV'];
+  const data = [tipos.cable, tipos.fibra, tipos.cctv];
+  const totales = [tipoTotal.cable, tipoTotal.fibra, tipoTotal.cctv];
+  const total = data.reduce((s,v)=>s+v,0);
+  chartProductos = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets:[{ data, backgroundColor:['#D72B1F','#185FA5','#2D6A1F'], borderWidth:2, borderColor:'#fff' }] },
+    options:{ responsive:true, maintainAspectRatio:true,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} cot. (${total?Math.round(c.raw/total*100):0}%)`}} }
+    }
+  });
+  const leg = document.getElementById('chart-productos-legend');
+  if (leg) leg.innerHTML = labels.map((l,i)=>`
+    <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)">
+      <span style="display:flex;align-items:center;gap:5px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${'#D72B1F,#185FA5,#2D6A1F'.split(',')[i]};display:inline-block"></span>${l}
+      </span>
+      <span style="font-weight:600;color:var(--text)">${data[i]} · ${totales[i]>=1000000?'$'+(totales[i]/1000000).toFixed(1)+'M':'$'+(totales[i]/1000).toFixed(0)+'K'}</span>
+    </div>`).join('');
+}
+
+function renderChartMeses(meses6) {
+  const ctx = document.getElementById('chart-meses');
+  if (!ctx || typeof Chart === 'undefined') return;
+  if (chartMeses) { chartMeses.destroy(); chartMeses = null; }
+  chartMeses = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: meses6.map(m=>m.label),
+      datasets:[
+        { label:'Cotizaciones', data:meses6.map(m=>m.count), backgroundColor:'rgba(215,43,31,.7)', borderRadius:4, yAxisID:'y' },
+        { label:'Total ($M)', data:meses6.map(m=>+(m.total/1000000).toFixed(2)), type:'line',
+          borderColor:'#185FA5', backgroundColor:'rgba(24,95,165,.1)', fill:true, tension:.3,
+          yAxisID:'y1', pointRadius:4, pointBackgroundColor:'#185FA5' }
+      ]
+    },
+    options:{ responsive:true, maintainAspectRatio:true,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},
+      scales:{
+        y:{position:'left',title:{display:true,text:'# Cot.',font:{size:10}},ticks:{font:{size:10}}},
+        y1:{position:'right',title:{display:true,text:'$ Millones',font:{size:10}},ticks:{font:{size:10}},grid:{drawOnChartArea:false}}
+      }
+    }
+  });
+}
+
+function renderRecomendacionesHome(tipos, tipoTotal, cots) {
+  const el = document.getElementById('chart-recomendaciones');
+  if (!el) return;
+  const total = tipos.cable + tipos.fibra + tipos.cctv;
+  if (!total) { el.innerHTML='<div class="rec-empty">Sin datos suficientes</div>'; return; }
+  const pctCable = total ? Math.round(tipos.cable/total*100) : 0;
+  const pctFibra = total ? Math.round(tipos.fibra/total*100) : 0;
+  const pctCCTV  = total ? Math.round(tipos.cctv/total*100) : 0;
+  const recs = [];
+  if (pctCable > 50) recs.push({ico:'🔌',txt:'Tu mercado principal es cableado estructurado. Ofrece Cat 6A a clientes que tienen Cat 6 para upgrades a 10Gbps.',color:'#D72B1F'});
+  if (pctFibra < 20 && tipos.cable > 2) recs.push({ico:'📡',txt:'Pocas cotizaciones de fibra. Ofrece backbone de fibra OM4 a clientes con proyectos de cableado multipisos.',color:'#185FA5'});
+  if (pctCCTV < 20 && tipos.cable > 1) recs.push({ico:'📹',txt:'Oportunidad CCTV: ofrece videovigilancia IP Hikvision a clientes que ya tienen red instalada.',color:'#2D6A1F'});
+  if (pctCable > 30 && pctCCTV > 20) recs.push({ico:'🌐',txt:'Clientes con cableado y CCTV son candidatos ideales para switches Ruijie PoE con gestión cloud.',color:'#854F0B'});
+  if (!recs.length) recs.push({ico:'📊',txt:'Sigue generando cotizaciones para obtener análisis de comportamiento y recomendaciones.',color:'#888'});
+  const clienteMap = {};
+  cots.forEach(c => {
+    const k = c.cliente||'Sin nombre';
+    if (!clienteMap[k]) clienteMap[k]={nombre:k,total:0};
+    clienteMap[k].total += c.total||0;
+  });
+  const topCli = Object.values(clienteMap).sort((a,b)=>b.total-a.total).slice(0,3);
+  el.innerHTML = `
+    <div style="margin-bottom:.75rem">
+      ${recs.slice(0,3).map(r=>`
+        <div style="display:flex;gap:8px;margin-bottom:.6rem;padding:.6rem;background:var(--bg);border-radius:6px;border-left:3px solid ${r.color}">
+          <span style="font-size:16px;flex-shrink:0">${r.ico}</span>
+          <span style="font-size:11px;color:var(--text);line-height:1.5">${r.txt}</span>
+        </div>`).join('')}
+    </div>
+    ${topCli.length ? `<div style="font-size:11px;font-weight:600;color:var(--text2);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.05em">Top clientes</div>
+    ${topCli.map(c=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:11px">
+      <span style="font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:65%">${c.nombre}</span>
+      <span style="color:var(--red);font-weight:700">${c.total>=1000000?'$'+(c.total/1000000).toFixed(1)+'M':'$'+(c.total/1000).toFixed(0)+'K'}</span>
+    </div>`).join('')}` : ''}`;
+}
+
 </script>
 </body>
 </html>
