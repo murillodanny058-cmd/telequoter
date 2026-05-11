@@ -2782,7 +2782,7 @@ function calcNK6() {
   ];
   render('r-cable','Cotizacion NETKEY Cat 6 UTP — '+pts+' puntos','NETKEY Cat6',items,mg,e,'cable',{pts,dist,cat:'NETKEY Cat 6 UTP'});
   renderRuijie('ruijie-cable',pts);
-  setTimeout(() => inyectarAutoInfra('r-cable', pts, dist, 'cableado'), 100);
+  // Auto-infra desactivado — se implementará manualmente
 }
 
 function calcPN6() {
@@ -2809,7 +2809,7 @@ function calcPN6() {
   ];
   render('r-cable','Cotizacion PANNET Cat 6 UTP — '+pts+' puntos','PANNET Cat6',items,mg,e,'cable',{pts,dist,cat:'PANNET Cat 6 UTP'});
   renderRuijie('ruijie-cable',pts);
-  setTimeout(() => inyectarAutoInfra('r-cable', pts, dist, 'cableado'), 100);
+  // Auto-infra desactivado — se implementará manualmente
 }
 
 function calcPA6A() {
@@ -2838,7 +2838,7 @@ function calcPA6A() {
   ];
   render('r-cable','Cotizacion PANNET Cat 6A UTP — '+pts+' puntos','PANNET Cat6A',items,mg,e,'cable',{pts,dist,cat:'PANNET Cat 6A UTP'});
   renderRuijie('ruijie-cable',pts);
-  setTimeout(() => inyectarAutoInfra('r-cable', pts, dist, 'cableado'), 100);
+  // Auto-infra desactivado — se implementará manualmente
 }
 
 function calcSH6A() {
@@ -2866,7 +2866,7 @@ function calcSH6A() {
   ];
   render('r-cable','Cotizacion Cat 6A Blindada F/UTP — '+pts+' puntos','Cat6A Blindada',items,mg,e,'cable',{pts,dist,cat:'Cat 6A Blindada F/UTP'});
   renderRuijie('ruijie-cable',pts);
-  setTimeout(() => inyectarAutoInfra('r-cable', pts, dist, 'cableado'), 100);
+  // Auto-infra desactivado — se implementará manualmente
 }
 
 function calcFibra() {
@@ -2890,7 +2890,7 @@ function calcFibra() {
 
   render('r-fibra','Cotización Fibra Óptica — '+tL[tipo],tL[tipo],items,mg,e,'fibra',{tramos,dist,fibTipo:tL[tipo]});
   // Infra automática: pts estimados = tramos * 2 terminales
-  setTimeout(() => inyectarAutoInfra('r-fibra', tramos * 2, dist, 'fibra'), 100);
+  // Auto-infra desactivado — se implementará manualmente
 }
 
 /* ---- PRECIOS HIKVISION (ref. catálogo Iberia 2022 — ajustar según lista de precios vigente) ---- */
@@ -3000,7 +3000,7 @@ function calcHIK(subtipo) {
   const titulo = `Cotización CCTV Hikvision ${lineas[subtipo]}`;
   render('r-cctv', titulo, `Hikvision ${lineas[subtipo]}`, items, mg, e, 'cctv', {cam, dist, res:'4mp', tipoSis: esIP?'ip':'ahd'});
   // Infra automática CCTV: pts = número de cámaras
-  setTimeout(() => inyectarAutoInfra('r-cctv', cam, dist, 'cctv'), 100);
+  // Auto-infra desactivado — se implementará manualmente
 }
 
 /* Mantener compatibilidad con calcCCTV por si queda alguna referencia */
